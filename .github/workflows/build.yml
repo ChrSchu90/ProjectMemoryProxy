@@ -1,0 +1,95 @@
+name: Build
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 6 * * 5' # Every Friday at 06:00 UTC
+  push:
+    branches:
+      - '**'
+    paths-ignore:
+      - '**/*.md'
+      - '**/*.png'
+    tags:
+      - 'v*'
+  pull_request:
+    branches:
+      - 'main'
+
+permissions:
+  contents: write # Create/update GitHub Releases
+
+env:
+  NET_SOLUTION: ProjectMemoryProxy.slnx
+  NET_DEPLOY_PROJECT: source/ProjectMemoryProxy.ProjectMemoryProxy/ProjectMemoryProxy.Server.csproj
+  NET_DB_PROJECT: source/ProjectMemoryProxy.Server/ProjectMemoryProxy.Server.csproj
+  NET_PUBLISH_DIR: ProjectMemoryProxy/bin/publish/
+  NET_PUBLISH_ARGS: "--verbosity normal --configuration Release -p:DebugType=embedded -p:PublishSingleFile=true -p:GenerateDocumentationFile=false --self-contained false"
+  APP_LINUX_X64_ARCHIVE: "ProjectMemoryProxy-linux-x64.tar.gz"
+  APP_WIN_X64_ARCHIVE: "ProjectMemoryProxy-win-x64.zip"
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v7
+      with:
+        fetch-depth: 0
+        fetch-tags: true
+
+    - name: .NET Setup
+      uses: actions/setup-dotnet@v6
+      with:
+        dotnet-version: |
+          10.0.x
+
+    - name: Get Version from Tag
+      uses: ChrSchu90/GitTagSemanticVersion@v1.1
+      if: startsWith(github.event.ref, 'refs/tags/v')
+      id: tagver
+
+    - name: .NET Tool Restore
+      run: dotnet tool restore
+
+    - name: .NET Restore
+      run: dotnet restore ${{ env.NET_SOLUTION }}
+
+    - name: .NET Build
+      run: dotnet build ${{ env.NET_SOLUTION }} --verbosity normal --no-restore --configuration Release
+
+    - name: Check EF Core Migrations
+      run: dotnet tool run dotnet-ef migrations has-pending-model-changes --project ${{ env.NET_DB_PROJECT }} --startup-project ${{ env.NET_DB_PROJECT }} --configuration Release --no-build
+
+    - name: .NET Test
+      run: dotnet test ${{ env.NET_SOLUTION }} --verbosity normal --no-restore --no-build --configuration Release
+    
+    - name: .NET Publish
+      shell: bash
+      env:
+        VERSION: ${{ steps.tagver.outputs.version }}
+      run: |
+        set -euo pipefail
+        if [[ -n "${VERSION//[[:space:]]/}" ]]; then
+          dotnet publish "$NET_DEPLOY_PROJECT" -r linux-x64 $NET_PUBLISH_ARGS -p:Version="$VERSION" -o "${NET_PUBLISH_DIR}linux-x64"     
+          dotnet publish "$NET_DEPLOY_PROJECT" -r win-x64 $NET_PUBLISH_ARGS -p:Version="$VERSION" -o "${NET_PUBLISH_DIR}win-x64"     
+        else
+          dotnet publish "$NET_DEPLOY_PROJECT" -r linux-x64 $NET_PUBLISH_ARGS -o "${NET_PUBLISH_DIR}linux-x64"
+          dotnet publish "$NET_DEPLOY_PROJECT" -r win-x64 $NET_PUBLISH_ARGS -o "${NET_PUBLISH_DIR}win-x64"
+        fi
+
+        tar -czf "${NET_PUBLISH_DIR}${APP_LINUX_X64_ARCHIVE}" -C "${NET_PUBLISH_DIR}linux-x64" .
+        (cd "${NET_PUBLISH_DIR}win-x64" && zip -r "../${APP_WIN_X64_ARCHIVE}" .)      
+
+    - name: Create Release
+      if: ${{ steps.tagver.outputs.is_valid == 'true' }}
+      uses: softprops/action-gh-release@v3
+      with:
+        tag_name: ${{ steps.tagver.outputs.version_tag }}
+        prerelease: ${{ steps.tagver.outputs.is_prerelease == 'true' }}
+        generate_release_notes: true
+        fail_on_unmatched_files: true
+        files: |
+          ./${{ env.NET_PUBLISH_DIR }}${{ env.APP_LINUX_X64_ARCHIVE }}
+          ./${{ env.NET_PUBLISH_DIR }}${{ env.APP_WIN_X64_ARCHIVE }}
