@@ -11,6 +11,8 @@
     <File Path="NuGet.Config" />
     <File Path="README.md" />
   </Folder>
+  <Project Path="source/ProjectMemoryProxy.Core/ProjectMemoryProxy.Core.csproj" Id="152eb348-f88f-47fd-9e22-ad11f6103db3" />
+  <Project Path="source/ProjectMemoryProxy.Persistence/ProjectMemoryProxy.Persistence.csproj" Id="3a7cdc62-93ae-4844-9586-0a9779632aac" />
   <Project Path="source/ProjectMemoryProxy.Server/ProjectMemoryProxy.Server.csproj" DefaultStartup="true" />
   <Project Path="tests/ProjectMemoryProxy.Server.Tests/ProjectMemoryProxy.Server.Tests.csproj" Id="b2ee8a1e-9e98-488d-88fc-2e343f506c97" />
 </Solution>

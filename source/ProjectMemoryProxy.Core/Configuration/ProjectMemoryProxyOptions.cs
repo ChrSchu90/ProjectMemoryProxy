@@ -1,10 +1,9 @@
-﻿namespace ProjectMemoryProxy.Server.Configuration;
+﻿namespace ProjectMemoryProxy.Core.Configuration;
 
 using System.Diagnostics;
-using Serilog.Events;
 
 /// <summary>
-/// Contains the DevHatch server configuration.
+/// Contains the server configuration.
 /// </summary>
 [DebuggerDisplay("ProjectMemoryProxyOptions")]
 public sealed class ProjectMemoryProxyOptions
@@ -31,7 +30,12 @@ public sealed class ProjectMemoryProxyOptions
     /// <summary>
     /// Gets or initializes the minimum Serilog event level.
     /// </summary>
-    public string LogLevel { get; init; } = nameof(LogEventLevel.Information);
+    public string LogLevel { get; init; } = "Information";
+
+    /// <summary>
+    /// The directory where the server will store its data, including the SQLite database.
+    /// </summary>
+    public string DataDirectory { get; init; } = null!;
 
     #endregion
 

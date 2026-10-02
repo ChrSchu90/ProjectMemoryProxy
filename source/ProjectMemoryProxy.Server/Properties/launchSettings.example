@@ -8,7 +8,8 @@
       "applicationUrl": "http://localhost:6186",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
-        "ProjectMemoryProxy__LogLevel": "Debug"
+        "ProjectMemoryProxy__LogLevel": "Debug",
+        "ProjectMemoryProxy__DataDirectory": "/data"
       }
     }
   }

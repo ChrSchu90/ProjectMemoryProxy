@@ -22,7 +22,7 @@ permissions:
 env:
   NET_SOLUTION: ProjectMemoryProxy.slnx
   NET_DEPLOY_PROJECT: source/ProjectMemoryProxy.Server/ProjectMemoryProxy.Server.csproj
-  NET_DB_PROJECT: source/ProjectMemoryProxy.Server/ProjectMemoryProxy.Server.csproj
+  NET_DB_PROJECT: source/ProjectMemoryProxy.Persistence/ProjectMemoryProxy.Persistence.csproj
   NET_PUBLISH_DIR: ProjectMemoryProxy/bin/publish/
   NET_PUBLISH_ARGS: "--verbosity normal --configuration Release -p:DebugType=embedded -p:PublishSingleFile=true -p:GenerateDocumentationFile=false --self-contained false"
   APP_LINUX_X64_ARCHIVE: "ProjectMemoryProxy-linux-x64.tar.gz"

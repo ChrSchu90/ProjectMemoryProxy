@@ -1,0 +1,12 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.12" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.12" PrivateAssets="all" IncludeAssets="runtime;build;native;contentfiles;analyzers;buildtransitive" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <ProjectReference Include="../ProjectMemoryProxy.Core/ProjectMemoryProxy.Core.csproj" />
+	</ItemGroup>
+
+</Project>

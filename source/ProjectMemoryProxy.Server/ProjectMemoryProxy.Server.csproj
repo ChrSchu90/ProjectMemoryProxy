@@ -8,8 +8,10 @@
 	<ItemGroup>
 		<PackageReference Include="ModelContextProtocol.AspNetCore" Version="2.2.0" />
 		<PackageReference Include="Serilog.AspNetCore" Version="10.0.0" />
-		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.12" PrivateAssets="all" IncludeAssets="runtime;build;native;contentfiles;analyzers;buildtransitive" />
-		<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.12" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <ProjectReference Include="../ProjectMemoryProxy.Persistence/ProjectMemoryProxy.Persistence.csproj" />
 	</ItemGroup>
 
 </Project>
