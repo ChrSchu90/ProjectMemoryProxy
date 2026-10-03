@@ -1,11 +1,14 @@
 namespace ProjectMemoryProxy.Persistence.MemoryProject;
 
 using System;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using ProjectMemoryProxy.Core.Routing;
 
 /// <summary>
-/// Stores memory project lifecycle metadata in the DevHatch EF Core database.
+/// Stores memory project lifecycle metadata in the EF Core database.
 /// </summary>
 internal sealed class EfProjectRegistry : IProjectRegistry
 {
@@ -38,6 +41,23 @@ internal sealed class EfProjectRegistry : IProjectRegistry
     #endregion
 
     #region Public Methods
+
+    /// <inheritdoc />
+    public async Task<ProjectRoute?> FindRouteAsync(ContextId contextId, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(contextId);
+
+        await using var dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+        var route = await dbContext.RoutingProjects
+                        .AsNoTracking()
+                        .Where(project => project.Bindings.Any(binding => binding.BindingType == contextId.BindingType && binding.BindingName == contextId.BindingName))
+                        .Select(project => new ProjectRoute(project.MemoryProjectId, project.Status, project.Bindings
+                            .Where(binding => binding.BindingType == contextId.BindingType && binding.BindingName == contextId.BindingName)
+                            .Select(binding => binding.Status)
+                            .Single()))
+                        .SingleOrDefaultAsync(cancellationToken).ConfigureAwait(false);
+        return route;
+    }
 
     #endregion
 

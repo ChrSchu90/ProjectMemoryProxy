@@ -82,6 +82,9 @@ public sealed record ContextId
         var typeIdentifier = value[..separatorIndex];
         var bindingName = value[(separatorIndex + 1)..];
 
+        if (char.IsWhiteSpace(bindingName[0]) || char.IsWhiteSpace(bindingName[^1]))
+            return false;
+
         if (!TryParseBindingType(typeIdentifier, out var bindingType))
             return false;
 
