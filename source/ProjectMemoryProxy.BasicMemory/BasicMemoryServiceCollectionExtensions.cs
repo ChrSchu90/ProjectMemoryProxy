@@ -21,10 +21,6 @@ public static class BasicMemoryServiceCollectionExtensions
 
     #endregion
 
-    #region Events
-
-    #endregion
-
     #region Properties
 
     #endregion
@@ -40,6 +36,7 @@ public static class BasicMemoryServiceCollectionExtensions
 
         services.AddSingleton<IBasicMemoryClient, BasicMemoryClient>();
         services.AddSingleton<BasicMemoryToolCatalog>();
+        services.AddSingleton<BasicMemoryMirroredToolCatalog>();
         return services;
     }
 
