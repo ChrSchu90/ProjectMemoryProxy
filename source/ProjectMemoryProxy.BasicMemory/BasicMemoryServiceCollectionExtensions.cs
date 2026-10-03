@@ -39,6 +39,7 @@ public static class BasicMemoryServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
 
         services.AddSingleton<IBasicMemoryClient, BasicMemoryClient>();
+        services.AddSingleton<BasicMemoryToolCatalog>();
         return services;
     }
 

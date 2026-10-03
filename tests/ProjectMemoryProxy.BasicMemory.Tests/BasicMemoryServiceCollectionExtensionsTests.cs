@@ -49,6 +49,7 @@ public sealed class BasicMemoryServiceCollectionExtensionsTests
         services.AddBasicMemory();
         await using var serviceProvider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true });
         Assert.IsNotNull(serviceProvider.GetRequiredService<IBasicMemoryClient>());
+        Assert.IsNotNull(serviceProvider.GetRequiredService<BasicMemoryToolCatalog>());
     }
 
     #endregion
