@@ -46,7 +46,7 @@ internal sealed class ContextBindingEntity
     /// <summary>
     /// Gets or sets the binding name.
     /// </summary>
-    [Required]
+    [Required, MaxLength(255)]
     public string BindingName { get; set; } = null!;
 
     /// <summary>

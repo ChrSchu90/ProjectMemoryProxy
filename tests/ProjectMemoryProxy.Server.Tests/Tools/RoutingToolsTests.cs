@@ -72,7 +72,7 @@ public sealed class RoutingToolsTests
     [TestMethod]
     public async Task ResolveContextAsyncReturnsProjectRoutingInactive()
     {
-        var route = new ProjectRoute(Guid.NewGuid(), Status.Inactive, Status.Active);
+        var route = new ProjectRoute(Guid.NewGuid(), Guid.NewGuid().ToString("N"), Status.Inactive, Status.Active);
         var tools = CreateTools(new StubProjectRegistry(route));
 
         var result = await tools.ResolveContextAsync(TestContextId, CancellationToken.None);
@@ -87,7 +87,7 @@ public sealed class RoutingToolsTests
     [TestMethod]
     public async Task ResolveContextAsyncReturnsBindingInactive()
     {
-        var route = new ProjectRoute(Guid.NewGuid(), Status.Active, Status.Inactive);
+        var route = new ProjectRoute(Guid.NewGuid(), Guid.NewGuid().ToString("N"), Status.Active, Status.Inactive);
         var tools = CreateTools(new StubProjectRegistry(route));
 
         var result = await tools.ResolveContextAsync(TestContextId, CancellationToken.None);
@@ -103,13 +103,15 @@ public sealed class RoutingToolsTests
     public async Task ResolveContextAsyncReturnsResolvedProject()
     {
         var memoryProjectId = Guid.NewGuid();
-        var route = new ProjectRoute(memoryProjectId, Status.Active, Status.Active);
+        var memoryProjectName = Guid.NewGuid().ToString("N");
+        var route = new ProjectRoute(memoryProjectId, memoryProjectName, Status.Active, Status.Active);
         var tools = CreateTools(new StubProjectRegistry(route));
 
         var result = await tools.ResolveContextAsync(TestContextId, CancellationToken.None);
         Assert.AreEqual(TestContextId, result.ContextId);
         Assert.AreEqual("resolved", result.Status);
         Assert.AreEqual(memoryProjectId, result.ProjectId);
+        //Assert.AreEqual(memoryProjectName, result.ProjectName);
     }
 
     /// <summary>

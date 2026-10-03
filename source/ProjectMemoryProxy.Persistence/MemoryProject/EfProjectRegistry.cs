@@ -50,10 +50,10 @@ internal sealed class EfProjectRegistry : IProjectRegistry
         await using var dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
         var route = await dbContext.RoutingProjects
                         .AsNoTracking()
-                        .Where(project => project.Bindings.Any(binding => binding.BindingType == contextId.BindingType && binding.BindingName == contextId.BindingName))
-                        .Select(project => new ProjectRoute(project.MemoryProjectId, project.Status, project.Bindings
-                            .Where(binding => binding.BindingType == contextId.BindingType && binding.BindingName == contextId.BindingName)
-                            .Select(binding => binding.Status)
+                        .Where(p => p.Bindings.Any(binding => binding.BindingType == contextId.BindingType && binding.BindingName == contextId.BindingName))
+                        .Select(p => new ProjectRoute(p.MemoryProjectId, p.MemoryProjectName, p.Status, p.Bindings
+                            .Where(b => b.BindingType == contextId.BindingType && b.BindingName == contextId.BindingName)
+                            .Select(b => b.Status)
                             .Single()))
                         .SingleOrDefaultAsync(cancellationToken).ConfigureAwait(false);
         return route;

@@ -18,6 +18,7 @@ namespace ProjectMemoryProxy.Persistence.Migrations
                     Id = table.Column<long>(type: "INTEGER", nullable: false)
                         .Annotation("Sqlite:Autoincrement", true),
                     MemoryProjectId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    MemoryProjectName = table.Column<string>(type: "TEXT", maxLength: 255, nullable: false),
                     Status = table.Column<string>(type: "TEXT", nullable: false),
                     CreatedAt = table.Column<long>(type: "INTEGER", nullable: false),
                     UpdatedAt = table.Column<long>(type: "INTEGER", nullable: false)
@@ -35,7 +36,7 @@ namespace ProjectMemoryProxy.Persistence.Migrations
                         .Annotation("Sqlite:Autoincrement", true),
                     RoutingProjectId = table.Column<long>(type: "INTEGER", nullable: false),
                     BindingType = table.Column<string>(type: "TEXT", nullable: false),
-                    BindingName = table.Column<string>(type: "TEXT", nullable: false),
+                    BindingName = table.Column<string>(type: "TEXT", maxLength: 255, nullable: false),
                     Status = table.Column<string>(type: "TEXT", nullable: false),
                     CreatedAt = table.Column<long>(type: "INTEGER", nullable: false),
                     UpdatedAt = table.Column<long>(type: "INTEGER", nullable: false)
@@ -66,6 +67,12 @@ namespace ProjectMemoryProxy.Persistence.Migrations
                 name: "IX_ProjectRoutings_MemoryProjectId",
                 table: "ProjectRoutings",
                 column: "MemoryProjectId",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ProjectRoutings_MemoryProjectName",
+                table: "ProjectRoutings",
+                column: "MemoryProjectName",
                 unique: true);
 
             migrationBuilder.CreateIndex(

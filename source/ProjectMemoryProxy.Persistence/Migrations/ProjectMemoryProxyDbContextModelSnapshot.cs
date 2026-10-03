@@ -29,6 +29,11 @@ namespace ProjectMemoryProxy.Persistence.Migrations
                     b.Property<Guid>("MemoryProjectId")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("MemoryProjectName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -39,6 +44,9 @@ namespace ProjectMemoryProxy.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("MemoryProjectId")
+                        .IsUnique();
+
+                    b.HasIndex("MemoryProjectName")
                         .IsUnique();
 
                     b.HasIndex("UpdatedAt");
@@ -56,6 +64,7 @@ namespace ProjectMemoryProxy.Persistence.Migrations
 
                             b1.Property<string>("BindingName")
                                 .IsRequired()
+                                .HasMaxLength(255)
                                 .HasColumnType("TEXT");
 
                             b1.Property<string>("BindingType")

@@ -10,7 +10,7 @@ using ProjectMemoryProxy.Core.Routing;
 /// <summary>
 /// Represents a routing to a basic-memory project.
 /// </summary>
-[Table("ProjectRoutings"), Index(nameof(MemoryProjectId), IsUnique = true), Index(nameof(UpdatedAt))]
+[Table("ProjectRoutings"), Index(nameof(MemoryProjectId), IsUnique = true), Index(nameof(MemoryProjectName), IsUnique = true), Index(nameof(UpdatedAt))]
 internal sealed class ProjectRoutingEntity
 {
     #region Static Fields
@@ -38,6 +38,12 @@ internal sealed class ProjectRoutingEntity
     /// </summary>
     [Required]
     public Guid MemoryProjectId { get; set; }
+
+    /// <summary>
+    /// Gets or sets the name of the basic-memory project.
+    /// </summary>
+    [Required, MaxLength(255)]
+    public string MemoryProjectName { get; set; } = null!;
 
     /// <summary>
     /// Gets or sets the project routing status.

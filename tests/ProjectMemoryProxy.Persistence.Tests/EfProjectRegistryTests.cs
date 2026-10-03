@@ -57,10 +57,12 @@ public sealed class EfProjectRegistryTests
     public async Task FindRouteAsyncReturnsExactRoute()
     {
         var memoryProjectId = Guid.NewGuid();
+        var memoryProjectName = Guid.NewGuid().ToString("N");
         await CreateDatabaseAsync(_databasePath,
             new ProjectRoutingEntity
             {
                 MemoryProjectId = memoryProjectId,
+                MemoryProjectName = memoryProjectName,
                 Status = Status.Active,
                 Bindings =
                 {
@@ -93,6 +95,7 @@ public sealed class EfProjectRegistryTests
             new ProjectRoutingEntity
             {
                 MemoryProjectId = Guid.NewGuid(),
+                MemoryProjectName = Guid.NewGuid().ToString("N"),
                 Bindings =
                 {
                     new ContextBindingEntity
@@ -120,6 +123,7 @@ public sealed class EfProjectRegistryTests
             new ProjectRoutingEntity
             {
                 MemoryProjectId = Guid.NewGuid(),
+                MemoryProjectName = Guid.NewGuid().ToString("N"),
                 Status = Status.Active,
                 Bindings =
                 {
@@ -151,6 +155,7 @@ public sealed class EfProjectRegistryTests
             new ProjectRoutingEntity
             {
                 MemoryProjectId = Guid.NewGuid(),
+                MemoryProjectName = Guid.NewGuid().ToString("N"),
                 Status = Status.Inactive,
                 Bindings =
                 {

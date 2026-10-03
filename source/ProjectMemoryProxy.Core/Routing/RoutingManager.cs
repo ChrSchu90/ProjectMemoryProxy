@@ -67,15 +67,15 @@ public sealed class RoutingManager
 
         var route = await _projectRegistry.FindRouteAsync(contextId, cancellationToken).ConfigureAwait(false);
         if (route == null)
-            return new ContextResolution(ContextResolutionStatus.NotBound, null);
+            return new ContextResolution(ContextResolutionStatus.NotBound, null, null);
 
         if (route.ProjectRoutingStatus != Status.Active)
-            return new ContextResolution(ContextResolutionStatus.ProjectRoutingInactive, null);
+            return new ContextResolution(ContextResolutionStatus.ProjectRoutingInactive, null, null);
 
         if (route.BindingStatus != Status.Active)
-            return new ContextResolution(ContextResolutionStatus.BindingInactive, null);
+            return new ContextResolution(ContextResolutionStatus.BindingInactive, null, null);
 
-        return new ContextResolution(ContextResolutionStatus.Resolved, route.MemoryProjectId);
+        return new ContextResolution(ContextResolutionStatus.Resolved, route.MemoryProjectId, route.MemoryProjectName);
     }
 
     #endregion

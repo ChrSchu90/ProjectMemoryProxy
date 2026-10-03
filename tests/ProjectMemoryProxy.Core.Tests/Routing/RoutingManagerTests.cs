@@ -52,6 +52,7 @@ public sealed class RoutingManagerTests
     {
         var route = new ProjectRoute(
             Guid.NewGuid(),
+            Guid.NewGuid().ToString("N"),
             Status.Inactive,
             Status.Active);
 
@@ -72,6 +73,7 @@ public sealed class RoutingManagerTests
     {
         var route = new ProjectRoute(
             Guid.NewGuid(),
+            Guid.NewGuid().ToString("N"),
             Status.Active,
             Status.Inactive);
 
@@ -91,8 +93,10 @@ public sealed class RoutingManagerTests
     public async Task ResolveContextAsyncReturnsResolvedRoute()
     {
         var memoryProjectId = Guid.NewGuid();
+        var memoryProjectName = Guid.NewGuid().ToString("N");
         var route = new ProjectRoute(
             memoryProjectId,
+            memoryProjectName,
             Status.Active,
             Status.Active);
 
@@ -103,6 +107,7 @@ public sealed class RoutingManagerTests
 
         Assert.AreEqual(ContextResolutionStatus.Resolved, result.Status);
         Assert.AreEqual(memoryProjectId, result.MemoryProjectId);
+        Assert.AreEqual(memoryProjectName, result.MemoryProjectName);
     }
 
     /// <summary>
@@ -121,7 +126,7 @@ public sealed class RoutingManagerTests
         var manager = CreateManager(registry);
 
         using var cancellationTokenSource = new CancellationTokenSource();
-        cancellationTokenSource.Cancel();
+        await cancellationTokenSource.CancelAsync();
 
         await Assert.ThrowsAsync<OperationCanceledException>(
             () => manager.ResolveContextAsync(TestContextId, cancellationTokenSource.Token));
@@ -135,6 +140,7 @@ public sealed class RoutingManagerTests
     {
         var route = new ProjectRoute(
             Guid.NewGuid(),
+            Guid.NewGuid().ToString("N"),
             (Status)int.MaxValue,
             Status.Active);
 
@@ -155,6 +161,7 @@ public sealed class RoutingManagerTests
     {
         var route = new ProjectRoute(
             Guid.NewGuid(),
+            Guid.NewGuid().ToString("N"),
             Status.Active,
             (Status)int.MaxValue);
 
