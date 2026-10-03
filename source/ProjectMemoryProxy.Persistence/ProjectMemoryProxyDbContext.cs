@@ -40,7 +40,7 @@ public sealed class ProjectMemoryProxyDbContext : DbContext
     /// <summary>
     /// Gets the persisted projects that are available for routing.
     /// </summary>
-    internal DbSet<RoutingProjectEntity> RoutingProjects => Set<RoutingProjectEntity>();
+    internal DbSet<ProjectRoutingEntity> RoutingProjects => Set<ProjectRoutingEntity>();
 
     #endregion
 
@@ -54,7 +54,7 @@ public sealed class ProjectMemoryProxyDbContext : DbContext
 
         // Store enums as strings in the database for better readability and maintainability.
         configurationBuilder.Properties<BindingType>().HaveConversion<EnumToStringConverter<BindingType>>();
-        configurationBuilder.Properties<ProjectContextStatus>().HaveConversion<EnumToStringConverter<ProjectContextStatus>>();
+        configurationBuilder.Properties<Status>().HaveConversion<EnumToStringConverter<Status>>();
     }
 
     #endregion

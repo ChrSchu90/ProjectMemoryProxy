@@ -7,10 +7,10 @@ using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
 
 /// <summary>
-/// Represents a link to a basic-memory project.
+/// Represents a routing to a basic-memory project.
 /// </summary>
-[Table("RoutingProjects"), Index(nameof(MemoryProjectId), IsUnique = true), Index(nameof(UpdatedAt))]
-internal sealed class RoutingProjectEntity
+[Table("ProjectRoutings"), Index(nameof(MemoryProjectId), IsUnique = true), Index(nameof(UpdatedAt))]
+internal sealed class ProjectRoutingEntity
 {
     #region Static Fields
 
@@ -39,25 +39,25 @@ internal sealed class RoutingProjectEntity
     public Guid MemoryProjectId { get; set; }
 
     /// <summary>
-    /// Gets or sets the project context status.
+    /// Gets or sets the project routing status.
     /// </summary>
     [Required]
-    public ProjectContextStatus Status { get; set; } = ProjectContextStatus.Active;
+    public Status Status { get; set; } = Status.Active;
 
     /// <summary>
-    /// Gets or sets when the project was created.
+    /// Gets or sets when the project routing was created.
     /// </summary>
     [Required]
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 
     /// <summary>
-    /// Gets or sets when the project was last updated.
+    /// Gets or sets when the project routing was last updated.
     /// </summary>
     [Required]
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
 
     /// <summary>
-    /// Gets or sets the project bindings.
+    /// Gets or sets the project bindings of the project routing.
     /// </summary>
     [ForeignKey(nameof(ContextBindingEntity.RoutingProjectId))]
     public ICollection<ContextBindingEntity> Bindings { get; set; } = new List<ContextBindingEntity>();

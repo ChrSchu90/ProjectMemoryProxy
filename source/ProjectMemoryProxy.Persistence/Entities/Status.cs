@@ -1,9 +1,9 @@
 ﻿namespace ProjectMemoryProxy.Persistence.Entities;
 
 /// <summary>
-/// Project context status.
+/// Status of a project or binding.
 /// </summary>
-public enum ProjectContextStatus
+public enum Status
 {
     /// <summary>
     /// The project binding is active and can be used for routing.

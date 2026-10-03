@@ -1,5 +1,6 @@
 namespace ProjectMemoryProxy.Persistence.Entities;
 
+using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
@@ -46,6 +47,24 @@ internal sealed class ContextBindingEntity
     /// </summary>
     [Required]
     public string BindingName { get; set; } = null!;
+
+    /// <summary>
+    /// Gets or sets the binding status.
+    /// </summary>
+    [Required]
+    public Status Status { get; set; } = Status.Active;
+
+    /// <summary>
+    /// Gets or sets when the binding was created.
+    /// </summary>
+    [Required]
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+
+    /// <summary>
+    /// Gets or sets when the binding was last updated.
+    /// </summary>
+    [Required]
+    public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
     
     #endregion
 
