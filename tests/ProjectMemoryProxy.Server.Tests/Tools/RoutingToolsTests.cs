@@ -111,7 +111,6 @@ public sealed class RoutingToolsTests
         Assert.AreEqual(TestContextId, result.ContextId);
         Assert.AreEqual("resolved", result.Status);
         Assert.AreEqual(memoryProjectId, result.ProjectId);
-        //Assert.AreEqual(memoryProjectName, result.ProjectName);
     }
 
     /// <summary>

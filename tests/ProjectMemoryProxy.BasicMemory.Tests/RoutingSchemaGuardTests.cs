@@ -460,27 +460,34 @@ public sealed class RoutingSchemaGuardTests
     }
 
     /// <summary>
-    /// Verifies that a discovered tool is automatically routed from its safe schema without requiring a tool-name allowlist entry.
+    /// Verifies that alternative project-routing semantics expressed through <c>anyOf</c> fail closed.
     /// </summary>
     [TestMethod]
-    public void ClassifyAutomaticallyRoutesFutureToolBySchema()
+    public void AnalyzeRejectsRoutingSelectorInsideAnyOf()
     {
-        var classifier = new BasicMemoryToolClassifier();
+        var guard = new RoutingSchemaGuard();
         var schema = ParseSchema(
             """
             {
-              "type": "object",
-              "properties": {
-                "pattern": { "type": "string" },
-                "project_id": {
-                  "type": ["string", "null"]
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "project_id": { "type": "string" }
+                  }
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "query": { "type": "string" }
+                  }
                 }
-              }
+              ]
             }
             """);
 
-        var result = classifier.Classify("grep", schema);
-        Assert.AreEqual(ToolRoutingClassification.AutomaticallyRouted, result);
+        var result = guard.Analyze(schema);
+        Assert.AreEqual(RoutingSchemaStatus.AlternativeRoutingSelector, result.Status);
     }
 
     #endregion

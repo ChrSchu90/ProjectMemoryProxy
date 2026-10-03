@@ -39,9 +39,9 @@ public sealed class RoutingManagerTests
         var manager = CreateManager(registry);
 
         var result = await manager.ResolveContextAsync(TestContextId, CancellationToken.None);
-
         Assert.AreEqual(ContextResolutionStatus.NotBound, result.Status);
         Assert.IsNull(result.MemoryProjectId);
+        Assert.IsNull(result.MemoryProjectName);
     }
 
     /// <summary>
@@ -60,9 +60,9 @@ public sealed class RoutingManagerTests
         var manager = CreateManager(registry);
 
         var result = await manager.ResolveContextAsync(TestContextId, CancellationToken.None);
-
         Assert.AreEqual(ContextResolutionStatus.ProjectRoutingInactive, result.Status);
         Assert.IsNull(result.MemoryProjectId);
+        Assert.IsNull(result.MemoryProjectName);
     }
 
     /// <summary>
@@ -84,6 +84,7 @@ public sealed class RoutingManagerTests
 
         Assert.AreEqual(ContextResolutionStatus.BindingInactive, result.Status);
         Assert.IsNull(result.MemoryProjectId);
+        Assert.IsNull(result.MemoryProjectName);
     }
 
     /// <summary>
@@ -127,9 +128,7 @@ public sealed class RoutingManagerTests
 
         using var cancellationTokenSource = new CancellationTokenSource();
         await cancellationTokenSource.CancelAsync();
-
-        await Assert.ThrowsAsync<OperationCanceledException>(
-            () => manager.ResolveContextAsync(TestContextId, cancellationTokenSource.Token));
+        await Assert.ThrowsAsync<OperationCanceledException>(() => manager.ResolveContextAsync(TestContextId, cancellationTokenSource.Token));
     }
 
     /// <summary>
@@ -148,9 +147,9 @@ public sealed class RoutingManagerTests
         var manager = CreateManager(registry);
 
         var result = await manager.ResolveContextAsync(TestContextId, CancellationToken.None);
-
         Assert.AreEqual(ContextResolutionStatus.ProjectRoutingInactive, result.Status);
         Assert.IsNull(result.MemoryProjectId);
+        Assert.IsNull(result.MemoryProjectName);
     }
 
     /// <summary>
@@ -169,9 +168,9 @@ public sealed class RoutingManagerTests
         var manager = CreateManager(registry);
 
         var result = await manager.ResolveContextAsync(TestContextId, CancellationToken.None);
-
         Assert.AreEqual(ContextResolutionStatus.BindingInactive, result.Status);
         Assert.IsNull(result.MemoryProjectId);
+        Assert.IsNull(result.MemoryProjectName);
     }
 
     #endregion

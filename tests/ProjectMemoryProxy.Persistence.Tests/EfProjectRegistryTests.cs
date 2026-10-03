@@ -233,15 +233,15 @@ public sealed class EfProjectRegistryTests
 
         dbContext.RoutingProjects.AddRange(
             new ProjectRoutingEntity
-                {
-                    MemoryProjectId = Guid.NewGuid(),
-                    MemoryProjectName = "shared-project-name"
-                },
+            {
+                MemoryProjectId = Guid.NewGuid(),
+                MemoryProjectName = "shared-project-name"
+            },
             new ProjectRoutingEntity
-                {
-                    MemoryProjectId = Guid.NewGuid(),
-                    MemoryProjectName = "shared-project-name"
-                });
+            {
+                MemoryProjectId = Guid.NewGuid(),
+                MemoryProjectName = "shared-project-name"
+            });
 
         await Assert.ThrowsAsync<DbUpdateException>(() => dbContext.SaveChangesAsync());
     }
