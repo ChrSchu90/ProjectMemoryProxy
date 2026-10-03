@@ -4,6 +4,7 @@ using ModelContextProtocol.AspNetCore;
 using ProjectMemoryProxy.BasicMemory;
 using ProjectMemoryProxy.Core.Configuration;
 using ProjectMemoryProxy.Persistence;
+using ProjectMemoryProxy.Server.Hosting;
 using ProjectMemoryProxy.Server.Tools;
 using Serilog;
 using Serilog.Core;
@@ -51,8 +52,9 @@ builder.Services.AddOptions<ProjectMemoryProxyOptions>()
 // Register the lifecycle database. Schema migrations are applied to an isolated copy during startup before MCP requests are accepted.
 builder.Services.AddPersistence();
 
-// Register the basic memory client.
+// Register the Basic Memory upstream integration and block host startup until its toolset is available.
 builder.Services.AddBasicMemory();
+builder.Services.AddHostedService<BasicMemoryStartupHostedService>();
 
 // Add the MCP services: the transport to use (http) and the tools to register.
 var mcpServerBuilder = builder.Services
@@ -71,30 +73,6 @@ var app = builder.Build();
 
 // Ensure the lifecycle database is fully initialized or migrated before the MCP endpoint starts.
 await app.Services.MigrateDatabaseAsync();
-
-Log.Information("Waiting for Basic Memory MCP to be available and expose its toolset...");
-var retryDelay = TimeSpan.FromSeconds(5);
-while (true)
-{
-    try
-    {
-        // Discover and register safely mirrorable Basic Memory tools before the MCP endpoint accepts requests.
-        await app.Services.RegisterBasicMemoryMirroredToolsAsync();
-        break;
-    }
-    catch (HttpRequestException exception)
-    {
-        Log.Warning(exception, "Basic Memory MCP is not reachable yet. Retrying in {RetryDelay}.", retryDelay);
-    }
-    catch (TimeoutException exception)
-    {
-        Log.Warning(exception, "Timed out while connecting to Basic Memory MCP. Retrying in {RetryDelay}.", retryDelay);
-    }
-
-    await Task.Delay(retryDelay);
-}
-
-Log.Information("Received Basic Memory MCP toolset and registered mirrored tools.");
 
 app.MapMcp();
 app.Run();

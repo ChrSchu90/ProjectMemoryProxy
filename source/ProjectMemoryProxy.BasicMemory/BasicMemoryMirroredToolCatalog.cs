@@ -143,7 +143,7 @@ internal sealed class BasicMemoryMirroredToolCatalog : IDisposable
 
             var snapshot = new CatalogSnapshot(new ReadOnlyCollection<BasicMemoryMirroredTool>(tools), new ReadOnlyDictionary<string, BasicMemoryMirroredTool>(toolsByName));
             Volatile.Write(ref _snapshot, snapshot);
-            _logger.LogInformation("Prepared {MirroredToolCount} of {UpstreamToolCount} discovered Basic Memory MCP tools for generic proxy mirroring.", snapshot.Tools.Count, _upstreamCatalog.Tools.Count);
+            _logger.LogInformation("Prepared {ExposedToolCount} of {UpstreamToolCount} discovered Basic Memory MCP tools for proxy exposure.", snapshot.Tools.Count, _upstreamCatalog.Tools.Count);
         }
         finally
         {
