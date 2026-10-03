@@ -1,5 +1,3 @@
-using System;
-using System.Reflection;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using ModelContextProtocol.AspNetCore;
@@ -11,6 +9,15 @@ using Serilog;
 using Serilog.Core;
 using Serilog.Events;
 using Serilog.Sinks.SystemConsole.Themes;
+using System;
+using System.Globalization;
+using System.Net.Http;
+using System.Reflection;
+using System.Threading;
+using System.Threading.Tasks;
+
+// Force english exception messages
+CultureInfo.CurrentCulture = CultureInfo.CurrentUICulture = CultureInfo.DefaultThreadCurrentCulture = CultureInfo.DefaultThreadCurrentUICulture = Thread.CurrentThread.CurrentUICulture = CultureInfo.InvariantCulture;
 
 // Init logging
 var logLevelSwitch = new LoggingLevelSwitch { MinimumLevel = LogEventLevel.Information };
@@ -64,6 +71,30 @@ var app = builder.Build();
 
 // Ensure the lifecycle database is fully initialized or migrated before the MCP endpoint starts.
 await app.Services.MigrateDatabaseAsync();
+
+Log.Information("Waiting for Basic Memory MCP to be available and expose its toolset...");
+var retryDelay = TimeSpan.FromSeconds(5);
+while (true)
+{
+    try
+    {
+        // Discover and register safely mirrorable Basic Memory tools before the MCP endpoint accepts requests.
+        await app.Services.RegisterBasicMemoryMirroredToolsAsync();
+        break;
+    }
+    catch (HttpRequestException exception)
+    {
+        Log.Warning(exception, "Basic Memory MCP is not reachable yet. Retrying in {RetryDelay}.", retryDelay);
+    }
+    catch (TimeoutException exception)
+    {
+        Log.Warning(exception, "Timed out while connecting to Basic Memory MCP. Retrying in {RetryDelay}.", retryDelay);
+    }
+
+    await Task.Delay(retryDelay);
+}
+
+Log.Information("Received Basic Memory MCP toolset and registered mirrored tools.");
 
 app.MapMcp();
 app.Run();
