@@ -1,6 +1,7 @@
 namespace ProjectMemoryProxy.BasicMemory.Tests;
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using System.Linq;
 using System.Text.Json;
 
 /// <summary>
@@ -28,10 +29,10 @@ public sealed class RoutingSchemaGuardTests
     #region Tests
 
     /// <summary>
-    /// Verifies that a simple schema without routing selectors matches an empty routing contract.
+    /// Verifies that a schema without a project selector is not considered automatically routable.
     /// </summary>
     [TestMethod]
-    public void AnalyzeAcceptsSafeSimpleSchema()
+    public void AnalyzeRejectsSchemaWithoutProjectSelector()
     {
         var guard = new RoutingSchemaGuard();
         var schema = ParseSchema(
@@ -44,15 +45,67 @@ public sealed class RoutingSchemaGuardTests
             }
             """);
 
-        var result = guard.Analyze(schema, []);
-        Assert.AreEqual(RoutingSchemaGuardStatus.Compatible, result);
+        var result = guard.Analyze(schema);
+        Assert.AreEqual(RoutingSchemaStatus.NoProjectSelector, result.Status);
+        Assert.AreEqual(ProjectSelectorKind.None, result.ProjectSelector);
+        Assert.IsFalse(result.IsAutomaticallyRoutable);
     }
 
     /// <summary>
-    /// Verifies that approved top-level routing selectors match the expected routing contract.
+    /// Verifies that a top-level <c>project_id</c> selector uses the canonical project identifier routing path.
     /// </summary>
     [TestMethod]
-    public void AnalyzeAcceptsExpectedTopLevelSelectors()
+    public void AnalyzeRoutesProjectId()
+    {
+        var guard = new RoutingSchemaGuard();
+        var schema = ParseSchema(
+            """
+            {
+              "type": "object",
+              "properties": {
+                "query": { "type": "string" },
+                "project_id": { "type": ["string", "null"] }
+              }
+            }
+            """);
+
+        var result = guard.Analyze(schema);
+        Assert.AreEqual(RoutingSchemaStatus.AutomaticallyRoutable, result.Status);
+        Assert.AreEqual(ProjectSelectorKind.ProjectId, result.ProjectSelector);
+        Assert.IsFalse(result.InjectProjectName);
+        CollectionAssert.AreEqual(new[] { "project_id" }, result.SuppressedProperties.ToArray());
+    }
+
+    /// <summary>
+    /// Verifies that a tool exposing only <c>project</c> can be routed with the validated local project name.
+    /// </summary>
+    [TestMethod]
+    public void AnalyzeRoutesProjectName()
+    {
+        var guard = new RoutingSchemaGuard();
+        var schema = ParseSchema(
+            """
+            {
+              "type": "object",
+              "properties": {
+                "query": { "type": "string" },
+                "project": { "type": ["string", "null"] }
+              }
+            }
+            """);
+
+        var result = guard.Analyze(schema);
+        Assert.AreEqual(RoutingSchemaStatus.AutomaticallyRoutable, result.Status);
+        Assert.AreEqual(ProjectSelectorKind.ProjectName, result.ProjectSelector);
+        Assert.IsTrue(result.InjectProjectName);
+        CollectionAssert.AreEqual(new[] { "project" }, result.SuppressedProperties.ToArray());
+    }
+
+    /// <summary>
+    /// Verifies that <c>project_id</c> takes precedence when both supported local project selectors are available.
+    /// </summary>
+    [TestMethod]
+    public void AnalyzePrefersProjectId()
     {
         var guard = new RoutingSchemaGuard();
         var schema = ParseSchema(
@@ -61,18 +114,108 @@ public sealed class RoutingSchemaGuardTests
               "type": "object",
               "properties": {
                 "project": { "type": ["string", "null"] },
-                "project_id": { "type": ["string", "null"] },
-                "query": { "type": "string" }
+                "project_id": { "type": ["string", "null"] }
               }
             }
             """);
 
-        var result = guard.Analyze(schema, ["project", "project_id"]);
-        Assert.AreEqual(RoutingSchemaGuardStatus.Compatible, result);
+        var result = guard.Analyze(schema);
+        Assert.AreEqual(RoutingSchemaStatus.AutomaticallyRoutable, result.Status);
+        Assert.AreEqual(ProjectSelectorKind.ProjectId, result.ProjectSelector);
+        Assert.IsFalse(result.InjectProjectName);
+        CollectionAssert.AreEqual(new[] { "project", "project_id" }, result.SuppressedProperties.ToArray());
     }
 
     /// <summary>
-    /// Verifies that a routing selector inside a nested object fails closed.
+    /// Verifies that a required <c>project</c> selector is injected alongside <c>project_id</c> when the upstream schema requires both.
+    /// </summary>
+    [TestMethod]
+    public void AnalyzeRequiresProjectNameWhenProjectIsRequired()
+    {
+        var guard = new RoutingSchemaGuard();
+        var schema = ParseSchema(
+            """
+            {
+              "type": "object",
+              "properties": {
+                "project": { "type": "string" },
+                "project_id": { "type": "string" }
+              },
+              "required": [
+                "project"
+              ]
+            }
+            """);
+
+        var result = guard.Analyze(schema);
+        Assert.AreEqual(RoutingSchemaStatus.AutomaticallyRoutable, result.Status);
+        Assert.AreEqual(ProjectSelectorKind.ProjectId, result.ProjectSelector);
+        Assert.IsTrue(result.InjectProjectName);
+    }
+
+    /// <summary>
+    /// Verifies that optional cloud and cross-project selectors are suppressed without blocking an otherwise locally routable tool.
+    /// </summary>
+    [TestMethod]
+    public void AnalyzeSuppressesOptionalUnsupportedSelectors()
+    {
+        var guard = new RoutingSchemaGuard();
+        var schema = ParseSchema(
+            """
+            {
+              "type": "object",
+              "properties": {
+                "query": { "type": "string" },
+                "project_id": { "type": "string" },
+                "workspace": { "type": ["string", "null"] },
+                "tenant_id": { "type": ["string", "null"] },
+                "search_all_projects": { "type": "boolean" }
+              }
+            }
+            """);
+
+        var result = guard.Analyze(schema);
+        Assert.AreEqual(RoutingSchemaStatus.AutomaticallyRoutable, result.Status);
+        Assert.AreEqual(ProjectSelectorKind.ProjectId, result.ProjectSelector);
+        CollectionAssert.AreEqual(
+            new[]
+            {
+                "project_id",
+                "search_all_projects",
+                "tenant_id",
+                "workspace"
+            },
+            result.SuppressedProperties.ToArray());
+    }
+
+    /// <summary>
+    /// Verifies that required workspace routing semantics fail closed because cloud workspaces are outside the supported proxy scope.
+    /// </summary>
+    [TestMethod]
+    public void AnalyzeRejectsRequiredWorkspaceSelector()
+    {
+        var guard = new RoutingSchemaGuard();
+        var schema = ParseSchema(
+            """
+            {
+              "type": "object",
+              "properties": {
+                "project_id": { "type": "string" },
+                "workspace": { "type": "string" }
+              },
+              "required": [
+                "workspace"
+              ]
+            }
+            """);
+
+        var result = guard.Analyze(schema);
+        Assert.AreEqual(RoutingSchemaStatus.RequiredUnsupportedSelector, result.Status);
+        Assert.IsFalse(result.IsAutomaticallyRoutable);
+    }
+
+    /// <summary>
+    /// Verifies that routing selectors inside nested objects fail closed.
     /// </summary>
     [TestMethod]
     public void AnalyzeRejectsNestedRoutingSelector()
@@ -83,22 +226,23 @@ public sealed class RoutingSchemaGuardTests
             {
               "type": "object",
               "properties": {
+                "project_id": { "type": "string" },
                 "options": {
                   "type": "object",
                   "properties": {
-                    "project_id": { "type": "string" }
+                    "workspace": { "type": "string" }
                   }
                 }
               }
             }
             """);
 
-        var result = guard.Analyze(schema, []);
-        Assert.AreEqual(RoutingSchemaGuardStatus.UnexpectedRoutingSelector, result);
+        var result = guard.Analyze(schema);
+        Assert.AreEqual(RoutingSchemaStatus.NestedRoutingSelector, result.Status);
     }
 
     /// <summary>
-    /// Verifies that a routing selector inside an array item fails closed.
+    /// Verifies that routing selectors inside array items fail closed.
     /// </summary>
     [TestMethod]
     public void AnalyzeRejectsRoutingSelectorInsideArrayItem()
@@ -109,12 +253,13 @@ public sealed class RoutingSchemaGuardTests
             {
               "type": "object",
               "properties": {
-                "items": {
+                "project_id": { "type": "string" },
+                "entries": {
                   "type": "array",
                   "items": {
                     "type": "object",
                     "properties": {
-                      "workspace": { "type": "string" }
+                      "project": { "type": "string" }
                     }
                   }
                 }
@@ -122,15 +267,15 @@ public sealed class RoutingSchemaGuardTests
             }
             """);
 
-        var result = guard.Analyze(schema, []);
-        Assert.AreEqual(RoutingSchemaGuardStatus.UnexpectedRoutingSelector, result);
+        var result = guard.Analyze(schema);
+        Assert.AreEqual(RoutingSchemaStatus.NestedRoutingSelector, result.Status);
     }
 
     /// <summary>
-    /// Verifies that routing selectors declared through <c>oneOf</c> are analyzed.
+    /// Verifies that alternative project-routing semantics expressed through <c>oneOf</c> fail closed.
     /// </summary>
     [TestMethod]
-    public void AnalyzeTraversesOneOf()
+    public void AnalyzeRejectsRoutingSelectorInsideOneOf()
     {
         var guard = new RoutingSchemaGuard();
         var schema = ParseSchema(
@@ -142,45 +287,26 @@ public sealed class RoutingSchemaGuardTests
                   "properties": {
                     "project_id": { "type": "string" }
                   }
-                }
-              ]
-            }
-            """);
-
-        var result = guard.Analyze(schema, ["project_id"]);
-        Assert.AreEqual(RoutingSchemaGuardStatus.Compatible, result);
-    }
-
-    /// <summary>
-    /// Verifies that routing selectors declared through <c>anyOf</c> are analyzed.
-    /// </summary>
-    [TestMethod]
-    public void AnalyzeTraversesAnyOf()
-    {
-        var guard = new RoutingSchemaGuard();
-        var schema = ParseSchema(
-            """
-            {
-              "anyOf": [
+                },
                 {
                   "type": "object",
                   "properties": {
-                    "project_id": { "type": "string" }
+                    "project": { "type": "string" }
                   }
                 }
               ]
             }
             """);
 
-        var result = guard.Analyze(schema, ["project_id"]);
-        Assert.AreEqual(RoutingSchemaGuardStatus.Compatible, result);
+        var result = guard.Analyze(schema);
+        Assert.AreEqual(RoutingSchemaStatus.AlternativeRoutingSelector, result.Status);
     }
 
     /// <summary>
-    /// Verifies that routing selectors declared through <c>allOf</c> are analyzed.
+    /// Verifies that non-alternative composition through <c>allOf</c> may provide a supported local project selector.
     /// </summary>
     [TestMethod]
-    public void AnalyzeTraversesAllOf()
+    public void AnalyzeRoutesProjectIdThroughAllOf()
     {
         var guard = new RoutingSchemaGuard();
         var schema = ParseSchema(
@@ -197,12 +323,13 @@ public sealed class RoutingSchemaGuardTests
             }
             """);
 
-        var result = guard.Analyze(schema, ["project_id"]);
-        Assert.AreEqual(RoutingSchemaGuardStatus.Compatible, result);
+        var result = guard.Analyze(schema);
+        Assert.AreEqual(RoutingSchemaStatus.AutomaticallyRoutable, result.Status);
+        Assert.AreEqual(ProjectSelectorKind.ProjectId, result.ProjectSelector);
     }
 
     /// <summary>
-    /// Verifies that a local JSON Schema reference is resolved before routing analysis.
+    /// Verifies that local JSON Schema references are resolved before routing analysis.
     /// </summary>
     [TestMethod]
     public void AnalyzeResolvesLocalReference()
@@ -216,7 +343,6 @@ public sealed class RoutingSchemaGuardTests
                 "input": {
                   "type": "object",
                   "properties": {
-                    "project": { "type": "string" },
                     "project_id": { "type": "string" }
                   }
                 }
@@ -224,12 +350,13 @@ public sealed class RoutingSchemaGuardTests
             }
             """);
 
-        var result = guard.Analyze(schema, ["project", "project_id"]);
-        Assert.AreEqual(RoutingSchemaGuardStatus.Compatible, result);
+        var result = guard.Analyze(schema);
+        Assert.AreEqual(RoutingSchemaStatus.AutomaticallyRoutable, result.Status);
+        Assert.AreEqual(ProjectSelectorKind.ProjectId, result.ProjectSelector);
     }
 
     /// <summary>
-    /// Verifies that an external JSON Schema reference fails closed.
+    /// Verifies that external JSON Schema references fail closed.
     /// </summary>
     [TestMethod]
     public void AnalyzeRejectsExternalReference()
@@ -242,12 +369,12 @@ public sealed class RoutingSchemaGuardTests
             }
             """);
 
-        var result = guard.Analyze(schema, []);
-        Assert.AreEqual(RoutingSchemaGuardStatus.UnsupportedSchema, result);
+        var result = guard.Analyze(schema);
+        Assert.AreEqual(RoutingSchemaStatus.UnsupportedSchema, result.Status);
     }
 
     /// <summary>
-    /// Verifies that a cyclic local JSON Schema reference fails closed.
+    /// Verifies that cyclic local JSON Schema references fail closed.
     /// </summary>
     [TestMethod]
     public void AnalyzeRejectsCyclicReference()
@@ -265,8 +392,8 @@ public sealed class RoutingSchemaGuardTests
             }
             """);
 
-        var result = guard.Analyze(schema, []);
-        Assert.AreEqual(RoutingSchemaGuardStatus.UnsupportedSchema, result);
+        var result = guard.Analyze(schema);
+        Assert.AreEqual(RoutingSchemaStatus.UnsupportedSchema, result.Status);
     }
 
     /// <summary>
@@ -284,15 +411,15 @@ public sealed class RoutingSchemaGuardTests
             }
             """);
 
-        var result = guard.Analyze(schema, []);
-        Assert.AreEqual(RoutingSchemaGuardStatus.UnsupportedSchema, result);
+        var result = guard.Analyze(schema);
+        Assert.AreEqual(RoutingSchemaStatus.UnsupportedSchema, result.Status);
     }
 
     /// <summary>
-    /// Verifies that similarly named non-routing properties do not match routing selectors.
+    /// Verifies that unknown routing-like aliases fail closed instead of being interpreted as supported selectors.
     /// </summary>
     [TestMethod]
-    public void AnalyzeAllowsSafeSimilarlyNamedProperties()
+    public void AnalyzeRejectsUnknownRoutingSelectorAlias()
     {
         var guard = new RoutingSchemaGuard();
         var schema = ParseSchema(
@@ -300,22 +427,21 @@ public sealed class RoutingSchemaGuardTests
             {
               "type": "object",
               "properties": {
-                "project_name": { "type": "string" },
-                "workspace_label": { "type": "string" },
-                "tenant_note": { "type": "string" }
+                "project_id": { "type": "string" },
+                "project_name": { "type": "string" }
               }
             }
             """);
 
-        var result = guard.Analyze(schema, []);
-        Assert.AreEqual(RoutingSchemaGuardStatus.Compatible, result);
+        var result = guard.Analyze(schema);
+        Assert.AreEqual(RoutingSchemaStatus.UnknownRoutingSelector, result.Status);
     }
 
     /// <summary>
-    /// Verifies that a case or separator variant of a routing selector fails closed.
+    /// Verifies that case variants of canonical routing selectors fail closed.
     /// </summary>
     [TestMethod]
-    public void AnalyzeRejectsRoutingSelectorAlias()
+    public void AnalyzeRejectsRoutingSelectorCaseAlias()
     {
         var guard = new RoutingSchemaGuard();
         var schema = ParseSchema(
@@ -329,8 +455,32 @@ public sealed class RoutingSchemaGuardTests
             }
             """);
 
-        var result = guard.Analyze(schema, ["project_id"]);
-        Assert.AreEqual(RoutingSchemaGuardStatus.UnexpectedRoutingSelector, result);
+        var result = guard.Analyze(schema);
+        Assert.AreEqual(RoutingSchemaStatus.UnknownRoutingSelector, result.Status);
+    }
+
+    /// <summary>
+    /// Verifies that a discovered tool is automatically routed from its safe schema without requiring a tool-name allowlist entry.
+    /// </summary>
+    [TestMethod]
+    public void ClassifyAutomaticallyRoutesFutureToolBySchema()
+    {
+        var classifier = new BasicMemoryToolClassifier();
+        var schema = ParseSchema(
+            """
+            {
+              "type": "object",
+              "properties": {
+                "pattern": { "type": "string" },
+                "project_id": {
+                  "type": ["string", "null"]
+                }
+              }
+            }
+            """);
+
+        var result = classifier.Classify("grep", schema);
+        Assert.AreEqual(ToolRoutingClassification.AutomaticallyRouted, result);
     }
 
     #endregion

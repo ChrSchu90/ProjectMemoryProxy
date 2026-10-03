@@ -28,10 +28,32 @@ public sealed class BasicMemoryToolClassifierTests
     #region Tests
 
     /// <summary>
-    /// Verifies that a known project-routed tool with its approved schema is automatically routable.
+    /// Verifies that a newly discovered tool with a supported project selector is automatically routed without requiring a tool-name allowlist entry.
     /// </summary>
     [TestMethod]
-    public void ClassifyAcceptsKnownAutomaticallyRoutedTool()
+    public void ClassifyAutomaticallyRoutesFutureToolBySchema()
+    {
+        var classifier = new BasicMemoryToolClassifier();
+        var schema = ParseSchema(
+            """
+            {
+              "type": "object",
+              "properties": {
+                "pattern": { "type": "string" },
+                "project_id": { "type": ["string", "null"] }
+              }
+            }
+            """);
+
+        var result = classifier.Classify("grep", schema);
+        Assert.AreEqual(ToolRoutingClassification.AutomaticallyRouted, result);
+    }
+
+    /// <summary>
+    /// Verifies that an existing Basic Memory tool remains automatically routable when its schema exposes supported local project routing.
+    /// </summary>
+    [TestMethod]
+    public void ClassifyAutomaticallyRoutesExistingToolBySchema()
     {
         var classifier = new BasicMemoryToolClassifier();
         var schema = ParseSchema(
@@ -52,10 +74,10 @@ public sealed class BasicMemoryToolClassifierTests
     }
 
     /// <summary>
-    /// Verifies that a known project-routed tool fails closed when its routing schema changes unexpectedly.
+    /// Verifies that a newly discovered tool without a supported project selector is blocked by the generic routing path.
     /// </summary>
     [TestMethod]
-    public void ClassifyBlocksKnownToolWithUnexpectedRoutingSchema()
+    public void ClassifyBlocksFutureToolWithoutProjectSelector()
     {
         var classifier = new BasicMemoryToolClassifier();
         var schema = ParseSchema(
@@ -63,7 +85,27 @@ public sealed class BasicMemoryToolClassifierTests
             {
               "type": "object",
               "properties": {
-                "project": { "type": "string" },
+                "query": { "type": "string" }
+              }
+            }
+            """);
+
+        var result = classifier.Classify("new_basic_memory_tool", schema);
+        Assert.AreEqual(ToolRoutingClassification.Blocked, result);
+    }
+
+    /// <summary>
+    /// Verifies that a tool is blocked when its schema contains routing semantics that cannot be safely controlled by the generic proxy path.
+    /// </summary>
+    [TestMethod]
+    public void ClassifyBlocksToolWithUnsafeRoutingSchema()
+    {
+        var classifier = new BasicMemoryToolClassifier();
+        var schema = ParseSchema(
+            """
+            {
+              "type": "object",
+              "properties": {
                 "project_id": { "type": "string" },
                 "options": {
                   "type": "object",
@@ -75,61 +117,80 @@ public sealed class BasicMemoryToolClassifierTests
             }
             """);
 
-        var result = classifier.Classify("read_note", schema);
+        var result = classifier.Classify("new_basic_memory_tool", schema);
         Assert.AreEqual(ToolRoutingClassification.Blocked, result);
     }
 
     /// <summary>
-    /// Verifies that the compatibility search tool requires an explicit adapter.
+    /// Verifies that compatibility tools requiring dedicated proxy behavior are classified as explicit adapters.
     /// </summary>
     [TestMethod]
-    public void ClassifyMarksSearchAsExplicitAdapter()
+    [DataRow("search")]
+    [DataRow("fetch")]
+    public void ClassifyMarksCompatibilityToolsAsExplicitAdapters(string toolName)
     {
         var classifier = new BasicMemoryToolClassifier();
-        var result = classifier.Classify("search", ParseSchema("""{"type":"object"}"""));
+
+        var result = classifier.Classify(toolName, ParseSchema("""{"type":"object"}"""));
         Assert.AreEqual(ToolRoutingClassification.ExplicitAdapter, result);
     }
 
     /// <summary>
-    /// Verifies that project-management tools are classified as project lifecycle operations.
+    /// Verifies that local Basic Memory project-management tools are classified as project lifecycle operations.
     /// </summary>
     [TestMethod]
-    public void ClassifyMarksProjectManagementAsLifecycle()
+    [DataRow("create_memory_project")]
+    [DataRow("delete_project")]
+    [DataRow("list_memory_projects")]
+    public void ClassifyMarksProjectManagementAsLifecycle(string toolName)
     {
         var classifier = new BasicMemoryToolClassifier();
-        var result = classifier.Classify("create_memory_project", ParseSchema("""{"type":"object"}"""));
+
+        var result = classifier.Classify(toolName, ParseSchema("""{"type":"object"}"""));
         Assert.AreEqual(ToolRoutingClassification.ProjectLifecycle, result);
     }
 
     /// <summary>
-    /// Verifies that an unknown upstream tool is blocked even when its schema appears harmless.
+    /// Verifies that cloud workspace discovery is blocked because workspace routing is outside the supported proxy scope.
     /// </summary>
     [TestMethod]
-    public void ClassifyBlocksUnknownTool()
+    public void ClassifyBlocksWorkspaceLifecycleTool()
     {
         var classifier = new BasicMemoryToolClassifier();
-        var result = classifier.Classify("new_basic_memory_tool", ParseSchema("""{"type":"object","properties":{"query":{"type":"string"}}}"""));
+
+        var result = classifier.Classify("list_workspaces", ParseSchema("""{"type":"object"}"""));
         Assert.AreEqual(ToolRoutingClassification.Blocked, result);
     }
 
     /// <summary>
-    /// Verifies that upstream tool names are matched using exact ordinal casing.
+    /// Verifies that special tool names use exact ordinal casing before falling back to generic schema-driven classification.
     /// </summary>
     [TestMethod]
-    public void ClassifyUsesExactToolName()
+    public void ClassifyUsesExactToolNameForSpecialClassification()
     {
         var classifier = new BasicMemoryToolClassifier();
-        var result = classifier.Classify("Search_Notes", ParseSchema("""{"type":"object"}"""));
-        Assert.AreEqual(ToolRoutingClassification.Blocked, result);
+        var schema = ParseSchema(
+            """
+            {
+              "type": "object",
+              "properties": {
+                "project_id": { "type": "string" }
+              }
+            }
+            """);
+
+        var result = classifier.Classify("Search", schema);
+        Assert.AreEqual(ToolRoutingClassification.AutomaticallyRouted, result);
     }
 
     /// <summary>
-    /// Verifies that diagnostics remain blocked until explicitly placed on the global allowlist.
+    /// Verifies that diagnostics remain blocked until explicitly approved as a global operation.
     /// </summary>
     [TestMethod]
     public void ClassifyBlocksDiagnosticsByDefault()
     {
         var classifier = new BasicMemoryToolClassifier();
+
         var result = classifier.Classify("basic_memory_diagnostics", ParseSchema("""{"type":"object"}"""));
         Assert.AreEqual(ToolRoutingClassification.Blocked, result);
     }

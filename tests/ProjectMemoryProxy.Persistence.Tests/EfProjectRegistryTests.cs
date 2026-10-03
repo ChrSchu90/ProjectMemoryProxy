@@ -81,6 +81,7 @@ public sealed class EfProjectRegistryTests
         var route = await registry.FindRouteAsync(contextId!, CancellationToken.None);
         Assert.IsNotNull(route);
         Assert.AreEqual(memoryProjectId, route.MemoryProjectId);
+        Assert.AreEqual(memoryProjectName, route.MemoryProjectName);
         Assert.AreEqual(Status.Active, route.ProjectRoutingStatus);
         Assert.AreEqual(Status.Active, route.BindingStatus);
     }
@@ -192,6 +193,7 @@ public sealed class EfProjectRegistryTests
             new ProjectRoutingEntity
             {
                 MemoryProjectId = Guid.NewGuid(),
+                MemoryProjectName = "project-a",
                 Bindings =
                 {
                     new ContextBindingEntity
@@ -204,6 +206,7 @@ public sealed class EfProjectRegistryTests
             new ProjectRoutingEntity
             {
                 MemoryProjectId = Guid.NewGuid(),
+                MemoryProjectName = "project-b",
                 Bindings =
                 {
                     new ContextBindingEntity
@@ -213,6 +216,32 @@ public sealed class EfProjectRegistryTests
                     }
                 }
             });
+
+        await Assert.ThrowsAsync<DbUpdateException>(() => dbContext.SaveChangesAsync());
+    }
+
+    /// <summary>
+    /// Verifies that the database prevents two local project routings from using the same Basic Memory project name.
+    /// </summary>
+    [TestMethod]
+    public async Task DatabaseRejectsDuplicateMemoryProjectName()
+    {
+        var options = ContextOptions.Create(_databasePath, pooling: false);
+
+        await using var dbContext = new ProjectMemoryProxyDbContext(options);
+        await dbContext.Database.MigrateAsync();
+
+        dbContext.RoutingProjects.AddRange(
+            new ProjectRoutingEntity
+                {
+                    MemoryProjectId = Guid.NewGuid(),
+                    MemoryProjectName = "shared-project-name"
+                },
+            new ProjectRoutingEntity
+                {
+                    MemoryProjectId = Guid.NewGuid(),
+                    MemoryProjectName = "shared-project-name"
+                });
 
         await Assert.ThrowsAsync<DbUpdateException>(() => dbContext.SaveChangesAsync());
     }

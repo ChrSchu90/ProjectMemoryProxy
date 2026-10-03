@@ -11,44 +11,6 @@ internal sealed class BasicMemoryToolClassifier
 {
     #region Static Fields
 
-    private static readonly string[] ProjectSelectors =
-        [
-            "project",
-            "project_id"
-        ];
-
-    private static readonly string[] ProjectWorkspaceSelectors =
-        [
-            "project",
-            "project_id",
-            "workspace"
-        ];
-
-    private static readonly string[] SearchSelectors =
-        [
-            "project",
-            "project_id",
-            "search_all_projects"
-        ];
-
-    private static readonly Dictionary<string, IReadOnlyCollection<string>> AutomaticallyRoutedTools = new(StringComparer.Ordinal)
-    {
-        ["build_context"] = ProjectSelectors,
-        ["delete_note"] = ProjectSelectors,
-        ["edit_note"] = ProjectWorkspaceSelectors,
-        ["list_directory"] = ProjectSelectors,
-        ["move_note"] = ProjectSelectors,
-        ["read_content"] = ProjectSelectors,
-        ["read_note"] = ProjectSelectors,
-        ["recent_activity"] = ProjectSelectors,
-        ["schema_diff"] = ProjectSelectors,
-        ["schema_infer"] = ProjectSelectors,
-        ["schema_validate"] = ProjectSelectors,
-        ["search_notes"] = SearchSelectors,
-        ["view_note"] = ProjectSelectors,
-        ["write_note"] = ProjectWorkspaceSelectors
-    };
-
     private static readonly HashSet<string> ExplicitAdapterTools = new(StringComparer.Ordinal)
     {
         "fetch",
@@ -59,8 +21,7 @@ internal sealed class BasicMemoryToolClassifier
     {
         "create_memory_project",
         "delete_project",
-        "list_memory_projects",
-        "list_workspaces"
+        "list_memory_projects"
     };
 
     private static readonly HashSet<string> GlobalAllowlistedTools = new(StringComparer.Ordinal);
@@ -99,13 +60,9 @@ internal sealed class BasicMemoryToolClassifier
         if (GlobalAllowlistedTools.Contains(toolName))
             return ToolRoutingClassification.GlobalAllowlisted;
 
-        if (!AutomaticallyRoutedTools.TryGetValue(toolName, out var expectedSelectors))
-            return ToolRoutingClassification.Blocked;
-
-        return _routingSchemaGuard.Analyze(inputSchema, expectedSelectors) ==
-               RoutingSchemaGuardStatus.Compatible ? 
-                   ToolRoutingClassification.AutomaticallyRouted : 
-                   ToolRoutingClassification.Blocked;
+        return _routingSchemaGuard.Analyze(inputSchema).IsAutomaticallyRoutable
+                   ? ToolRoutingClassification.AutomaticallyRouted
+                   : ToolRoutingClassification.Blocked;
     }
 
     #endregion
