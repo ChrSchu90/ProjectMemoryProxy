@@ -1,0 +1,11 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<ItemGroup>
+		<PackageReference Include="ModelContextProtocol" Version="2.2.0" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="../ProjectMemoryProxy.Core/ProjectMemoryProxy.Core.csproj" />
+	</ItemGroup>
+
+</Project>

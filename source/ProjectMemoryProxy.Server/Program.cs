@@ -10,6 +10,7 @@ using Serilog.Events;
 using Serilog.Sinks.SystemConsole.Themes;
 using System;
 using System.Reflection;
+using ProjectMemoryProxy.BasicMemory;
 
 // Init logging
 var logLevelSwitch = new LoggingLevelSwitch { MinimumLevel = LogEventLevel.Information };
@@ -35,11 +36,16 @@ else
 builder.Services.AddOptions<ProjectMemoryProxyOptions>()
     .Bind(builder.Configuration.GetSection(ProjectMemoryProxyOptions.SectionName))
     .Validate(options => !string.IsNullOrWhiteSpace(options.DataDirectory), $"{ProjectMemoryProxyOptions.SectionName}__{nameof(ProjectMemoryProxyOptions.DataDirectory)} must be configured.")
+    .Validate(options => options.BasicMemoryEndpoint is { IsAbsoluteUri: true }, $"{ProjectMemoryProxyOptions.SectionName}__{nameof(ProjectMemoryProxyOptions.BasicMemoryEndpoint)} must be an absolute URI.")
+    .Validate(options => options.BasicMemoryConnectionTimeout > TimeSpan.Zero, $"{ProjectMemoryProxyOptions.SectionName}__{nameof(ProjectMemoryProxyOptions.BasicMemoryConnectionTimeout)} must be greater than zero.")
     //.Validate(options => Enum.TryParse<LogEventLevel>(options.LogLevel, true, out _), "LogLevel must be a valid Serilog log event level.")
     .ValidateOnStart();
 
 // Register the lifecycle database. Schema migrations are applied to an isolated copy during startup before MCP requests are accepted.
 builder.Services.AddPersistence();
+
+// Register the basic memory client.
+builder.Services.AddBasicMemory();
 
 // Add the MCP services: the transport to use (http) and the tools to register.
 var mcpServerBuilder = builder.Services

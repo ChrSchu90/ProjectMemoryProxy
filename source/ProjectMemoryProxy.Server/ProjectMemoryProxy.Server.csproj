@@ -12,6 +12,7 @@
 
 	<ItemGroup>
 	  <ProjectReference Include="../ProjectMemoryProxy.Persistence/ProjectMemoryProxy.Persistence.csproj" />
+	  <ProjectReference Include="..\ProjectMemoryProxy.BasicMemory\ProjectMemoryProxy.BasicMemory.csproj" />
 	</ItemGroup>
 
 </Project>
