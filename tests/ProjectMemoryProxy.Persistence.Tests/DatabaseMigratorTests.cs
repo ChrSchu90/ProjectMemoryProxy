@@ -49,6 +49,9 @@ public sealed class DatabaseMigratorTests
 
     #region Tests
 
+    /// <summary>
+    /// Verifies that the current EF Core model matches the latest migration and has no pending model changes.
+    /// </summary>
     [TestMethod]
     public void NoPendingChanges()
     {
@@ -57,6 +60,9 @@ public sealed class DatabaseMigratorTests
         Assert.IsFalse(context.Database.HasPendingModelChanges());
     }
 
+    /// <summary>
+    /// Verifies that migrating without an existing database creates a current database without leaving migration or backup artifacts.
+    /// </summary>
     [TestMethod]
     public async Task CreatesCurrentDatabaseWithoutBackup()
     {
@@ -69,6 +75,9 @@ public sealed class DatabaseMigratorTests
         Assert.IsFalse(await HasPendingMigrationsAsync(paths.DatabasePath));
     }
 
+    /// <summary>
+    /// Verifies that rerunning migration on an already current database does not create migration or backup artifacts.
+    /// </summary>
     [TestMethod]
     public async Task DoesNotCreateBackupWithoutMigrating()
     {
@@ -81,6 +90,9 @@ public sealed class DatabaseMigratorTests
         Assert.IsFalse(File.Exists(paths.BackupPath));
     }
 
+    /// <summary>
+    /// Verifies that an existing database requiring migration is migrated on a copy, activated successfully, and preserves the original database as a backup.
+    /// </summary>
     [TestMethod]
     public async Task MigrationCopyAndBacksUpOriginal()
     {
@@ -97,6 +109,9 @@ public sealed class DatabaseMigratorTests
         Assert.IsFalse(TableExists(paths.BackupPath, "ProjectRoutings"));
     }
 
+    /// <summary>
+    /// Verifies that a stale temporary migration database is discarded before creating a valid current database when no active database exists.
+    /// </summary>
     [TestMethod]
     public async Task StaleMigrationRecreatesDatabase()
     {

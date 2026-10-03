@@ -1,10 +1,12 @@
 namespace ProjectMemoryProxy.Core.Routing;
 
-using System;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Threading;
+using System.Threading.Tasks;
 
 /// <summary>
-/// Coordinates project memory lifecycle across persistence and the filesystem.
+/// Resolves technical context identifiers to authorized memory project routings.
 /// </summary>
 public sealed class RoutingManager
 {
@@ -52,6 +54,29 @@ public sealed class RoutingManager
     #endregion
 
     #region Public Methods
+
+    /// <summary>
+    /// Resolves a context to an active memory project routing.
+    /// </summary>
+    /// <param name="contextId">The context identifier.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The context resolution result.</returns>
+    public async Task<ContextResolution> ResolveContextAsync(ContextId contextId, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(contextId);
+
+        var route = await _projectRegistry.FindRouteAsync(contextId, cancellationToken).ConfigureAwait(false);
+        if (route == null)
+            return new ContextResolution(ContextResolutionStatus.NotBound, null);
+
+        if (route.ProjectRoutingStatus != Status.Active)
+            return new ContextResolution(ContextResolutionStatus.ProjectRoutingInactive, null);
+
+        if (route.BindingStatus != Status.Active)
+            return new ContextResolution(ContextResolutionStatus.BindingInactive, null);
+
+        return new ContextResolution(ContextResolutionStatus.Resolved, route.MemoryProjectId);
+    }
 
     #endregion
 
