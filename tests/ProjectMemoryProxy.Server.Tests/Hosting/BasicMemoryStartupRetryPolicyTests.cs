@@ -56,7 +56,7 @@ public sealed class BasicMemoryStartupRetryPolicyTests
             CancellationToken.None);
 
         Assert.AreEqual(2, attemptCount);
-        Assert.AreEqual(1, logger.Entries.Count);
+        Assert.HasCount(1, logger.Entries);
         Assert.AreEqual(LogLevel.Warning, logger.Entries[0].LogLevel);
         Assert.IsNull(logger.Entries[0].Exception);
     }

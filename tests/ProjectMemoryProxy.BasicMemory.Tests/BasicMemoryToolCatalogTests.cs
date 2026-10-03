@@ -73,7 +73,7 @@ public sealed class BasicMemoryToolCatalogTests
 
         Assert.IsTrue(catalog.IsInitialized);
         Assert.AreEqual(1, client.ListToolsCallCount);
-        Assert.AreEqual(1, catalog.Tools.Count);
+        Assert.HasCount(1, catalog.Tools);
     }
 
     /// <summary>

@@ -54,7 +54,7 @@ public sealed class BasicMemoryMirroredToolCatalogTests
 
         await mirroredCatalog.InitializeAsync(cancellationTokenSource.Token);
         Assert.IsTrue(mirroredCatalog.IsInitialized);
-        Assert.AreEqual(1, mirroredCatalog.Tools.Count);
+        Assert.HasCount(1, mirroredCatalog.Tools);
 
         var tool = mirroredCatalog.Tools.Single();
         Assert.AreEqual("read_note", tool.Name);

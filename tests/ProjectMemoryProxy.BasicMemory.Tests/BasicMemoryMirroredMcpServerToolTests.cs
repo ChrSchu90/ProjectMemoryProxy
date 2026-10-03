@@ -73,7 +73,7 @@ public sealed class BasicMemoryMirroredMcpServerToolTests
         await using var proxyClient = await CreateMcpClientAsync(GetMcpEndpoint(proxyServer), cancellationToken);
 
         var tools = await proxyClient.ListToolsAsync(cancellationToken: cancellationToken);
-        Assert.AreEqual(1, tools.Count);
+        Assert.HasCount(1, tools);
 
         var publicTool = tools.Single();
         Assert.AreEqual("read_note", publicTool.Name);
