@@ -1,5 +1,10 @@
 namespace ProjectMemoryProxy.BasicMemory.Tests;
 
+using System;
+using System.Linq;
+using System.Net;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Hosting.Server;
@@ -11,11 +16,6 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using ModelContextProtocol.AspNetCore;
 using ModelContextProtocol.Server;
 using ProjectMemoryProxy.Core.Configuration;
-using System;
-using System.Linq;
-using System.Net;
-using System.Threading;
-using System.Threading.Tasks;
 
 /// <summary>
 /// Tests for <see cref="BasicMemoryClient"/>.

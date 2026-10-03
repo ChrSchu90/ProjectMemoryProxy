@@ -1,11 +1,11 @@
 namespace ProjectMemoryProxy.Server.Tools;
 
-using ModelContextProtocol.Server;
-using ProjectMemoryProxy.Core.Routing;
 using System;
 using System.ComponentModel;
 using System.Threading;
 using System.Threading.Tasks;
+using ModelContextProtocol.Server;
+using ProjectMemoryProxy.Core.Routing;
 
 /// <summary>
 /// Provides MCP tools for inspecting project memory routing.

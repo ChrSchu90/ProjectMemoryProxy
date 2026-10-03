@@ -1,9 +1,9 @@
 namespace ProjectMemoryProxy.Core.Routing;
 
-using Microsoft.Extensions.Logging;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 /// <summary>
 /// Resolves technical context identifiers to authorized memory project routings.

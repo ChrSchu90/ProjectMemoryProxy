@@ -1,8 +1,8 @@
 namespace ProjectMemoryProxy.BasicMemory;
 
-using ModelContextProtocol.Client;
 using System;
 using System.Text.Json;
+using ModelContextProtocol.Client;
 
 /// <summary>
 /// Represents a Basic Memory tool that can be exposed through the generic server-controlled proxy path.

@@ -1,13 +1,13 @@
 namespace ProjectMemoryProxy.Persistence.Tests;
 
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-using ProjectMemoryProxy.Core.Routing;
-using ProjectMemoryProxy.Persistence.MemoryProject;
 using System;
 using System.IO;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 using ProjectMemoryProxy.Core.Configuration;
+using ProjectMemoryProxy.Core.Routing;
+using ProjectMemoryProxy.Persistence.MemoryProject;
 
 /// <summary>
 /// Tests for <see cref="PersistenceServiceCollectionExtensions"/>

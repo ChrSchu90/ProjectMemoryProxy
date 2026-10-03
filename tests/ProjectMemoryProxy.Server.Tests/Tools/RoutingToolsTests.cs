@@ -1,12 +1,12 @@
 namespace ProjectMemoryProxy.Server.Tests.Tools;
 
+using System;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using ProjectMemoryProxy.Core.Routing;
 using ProjectMemoryProxy.Server.Tools;
-using System;
-using System.Threading;
-using System.Threading.Tasks;
 
 /// <summary>
 /// Tests for <see cref="RoutingTools"/>

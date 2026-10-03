@@ -1,14 +1,14 @@
 namespace ProjectMemoryProxy.BasicMemory.Tests;
 
-using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-using ModelContextProtocol;
-using ProjectMemoryProxy.Core.Routing;
 using System;
 using System.Collections.Generic;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+using ModelContextProtocol;
+using ProjectMemoryProxy.Core.Routing;
 
 /// <summary>
 /// Tests for <see cref="BasicMemoryInvocationArgumentBuilder"/>

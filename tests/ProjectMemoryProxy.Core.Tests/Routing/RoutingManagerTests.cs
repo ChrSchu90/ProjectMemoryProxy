@@ -1,11 +1,11 @@
 namespace ProjectMemoryProxy.Core.Tests.Routing;
 
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-using ProjectMemoryProxy.Core.Routing;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+using ProjectMemoryProxy.Core.Routing;
 
 /// <summary>
 /// Tests for <see cref="RoutingManager"/>

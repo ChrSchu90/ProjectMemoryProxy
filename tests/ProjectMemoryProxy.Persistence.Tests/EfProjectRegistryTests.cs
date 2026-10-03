@@ -1,14 +1,14 @@
 namespace ProjectMemoryProxy.Persistence.Tests;
 
+using System;
+using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using ProjectMemoryProxy.Core.Routing;
 using ProjectMemoryProxy.Persistence.Entities;
 using ProjectMemoryProxy.Persistence.MemoryProject;
-using System;
-using System.IO;
-using System.Threading;
-using System.Threading.Tasks;
 
 /// <summary>
 /// Tests for <see cref="EfProjectRegistry"/>

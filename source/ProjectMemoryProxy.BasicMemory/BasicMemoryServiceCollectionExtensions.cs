@@ -1,8 +1,7 @@
 namespace ProjectMemoryProxy.BasicMemory;
 
-using Microsoft.Extensions.DependencyInjection;
-
 using System;
+using Microsoft.Extensions.DependencyInjection;
 
 /// <summary>
 /// Provides Basic Memory service registrations.
