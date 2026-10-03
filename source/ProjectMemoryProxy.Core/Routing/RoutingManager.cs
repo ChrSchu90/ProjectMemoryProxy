@@ -25,7 +25,7 @@ public sealed class RoutingManager
     #region Constructors
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="projectRegistry"/> class.
+    /// Initializes a new instance of the <see cref="RoutingManager"/> class.
     /// </summary>
     /// <param name="projectRegistry">The project registry.</param>
     /// <param name="logger">The logger.</param>
@@ -35,10 +35,10 @@ public sealed class RoutingManager
     }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="projectRegistry"/> class with an explicit time provider.
+    /// Initializes a new instance of the <see cref="RoutingManager"/> class with an explicit time provider.
     /// </summary>
-    /// <param name="logger">The memory project registry.</param>
     /// <param name="projectRegistry">The project registry.</param>
+    /// <param name="logger">The logger.</param>
     /// <param name="timeProvider">The time provider.</param>
     internal RoutingManager(IProjectRegistry projectRegistry, ILogger<RoutingManager> logger, TimeProvider timeProvider)
     {

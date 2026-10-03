@@ -1,14 +1,15 @@
-using System;
-using System.Reflection;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using ModelContextProtocol.AspNetCore;
 using ProjectMemoryProxy.Core.Configuration;
 using ProjectMemoryProxy.Persistence;
+using ProjectMemoryProxy.Server.Tools;
 using Serilog;
 using Serilog.Core;
 using Serilog.Events;
 using Serilog.Sinks.SystemConsole.Themes;
+using System;
+using System.Reflection;
 
 // Init logging
 var logLevelSwitch = new LoggingLevelSwitch { MinimumLevel = LogEventLevel.Information };
@@ -51,7 +52,7 @@ var mcpServerBuilder = builder.Services
         options.SessionMode = HttpServerSessionMode.Stateless;
     });
 
-// ToDo: Register dynamic MCP tools here
+mcpServerBuilder.WithTools<RoutingTools>();
 
 var app = builder.Build();
 

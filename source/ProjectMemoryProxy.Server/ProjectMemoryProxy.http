@@ -1,6 +1,6 @@
 # For more info on HTTP files go to https://aka.ms/vs/httpfile
 
-@HostAddress = https://localhost:5106
+@HostAddress = http://localhost:6186
 
 POST {{HostAddress}}/
 Accept: application/json, text/event-stream
@@ -12,6 +12,9 @@ MCP-Protocol-Version: 2025-11-25
     "id": 1,
     "method": "tools/call",
     "params": {
-        "name": "get_random_number"
+        "name": "resolve_context",
+        "arguments": {
+            "context_id": "git:github.com/ChrSchu90/ProjectMemoryProxy"
+        }
     }
 }
