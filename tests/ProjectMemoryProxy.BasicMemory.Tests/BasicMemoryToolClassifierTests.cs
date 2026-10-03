@@ -151,15 +151,15 @@ public sealed class BasicMemoryToolClassifierTests
     }
 
     /// <summary>
-    /// Verifies that cloud workspace discovery is blocked because workspace routing is outside the supported proxy scope.
+    /// Verifies that cloud workspace discovery is intentionally blocked because workspace routing is outside the supported local proxy scope.
     /// </summary>
     [TestMethod]
-    public void ClassifyBlocksWorkspaceLifecycleTool()
+    public void ClassifyMarksWorkspaceDiscoveryAsIntentionallyBlocked()
     {
         var classifier = new BasicMemoryToolClassifier();
 
         var result = classifier.Classify("list_workspaces", ParseSchema("""{"type":"object"}"""));
-        Assert.AreEqual(ToolRoutingClassification.Blocked, result);
+        Assert.AreEqual(ToolRoutingClassification.IntentionallyBlocked, result);
     }
 
     /// <summary>
@@ -184,15 +184,15 @@ public sealed class BasicMemoryToolClassifierTests
     }
 
     /// <summary>
-    /// Verifies that diagnostics remain blocked until explicitly approved as a global operation.
+    /// Verifies that Basic Memory diagnostics are explicitly approved as a global operation.
     /// </summary>
     [TestMethod]
-    public void ClassifyBlocksDiagnosticsByDefault()
+    public void ClassifyAllowsDiagnosticsAsGlobalOperation()
     {
         var classifier = new BasicMemoryToolClassifier();
 
-        var result = classifier.Classify("basic_memory_diagnostics", ParseSchema("""{"type":"object"}"""));
-        Assert.AreEqual(ToolRoutingClassification.Blocked, result);
+        var result = classifier.Classify("basic_memory_diagnostics", ParseSchema("""{"type":"object","properties":{}}"""));
+        Assert.AreEqual(ToolRoutingClassification.GlobalAllowlisted, result);
     }
 
     #endregion

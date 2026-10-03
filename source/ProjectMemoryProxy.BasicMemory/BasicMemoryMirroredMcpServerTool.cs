@@ -2,6 +2,7 @@ namespace ProjectMemoryProxy.BasicMemory;
 
 using System;
 using System.Collections.Generic;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
@@ -55,7 +56,19 @@ internal sealed class BasicMemoryMirroredMcpServerTool : McpServerTool
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        var upstreamArguments = await _argumentBuilder.BuildAsync(_mirroredTool.RoutingAnalysis, _mirroredTool.PublicInputSchema, request.Params.Arguments, cancellationToken).ConfigureAwait(false);
+        IReadOnlyDictionary<string, object?> upstreamArguments;
+        switch (_mirroredTool.Classification)
+        {
+            case ToolRoutingClassification.AutomaticallyRouted:
+                upstreamArguments = await _argumentBuilder.BuildAsync(_mirroredTool.RoutingAnalysis, _mirroredTool.PublicInputSchema, request.Params.Arguments, cancellationToken).ConfigureAwait(false);
+                break;
+            case ToolRoutingClassification.GlobalAllowlisted:
+                upstreamArguments = CopyArguments(request.Params.Arguments);
+                break;
+            default:
+                throw new InvalidOperationException($"Mirrored tool '{_mirroredTool.Name}' has unsupported exposure classification '{_mirroredTool.Classification}'.");
+        }
+
         return await _mirroredTool.UpstreamTool.CallAsync(upstreamArguments, cancellationToken: cancellationToken).ConfigureAwait(false);
     }
 
@@ -94,6 +107,19 @@ internal sealed class BasicMemoryMirroredMcpServerTool : McpServerTool
         };
     }
 
+    private static IReadOnlyDictionary<string, object?> CopyArguments(IEnumerable<KeyValuePair<string, JsonElement>>? arguments)
+    {
+        var result = new Dictionary<string, object?>(StringComparer.Ordinal);
+        if (arguments == null)
+            return result;
+
+        foreach (var argument in arguments)
+        {
+            result.Add(argument.Key, argument.Value.Clone());
+        }
+
+        return result;
+    }
 
     #endregion
 }

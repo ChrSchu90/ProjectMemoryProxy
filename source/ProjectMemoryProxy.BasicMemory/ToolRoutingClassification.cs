@@ -11,6 +11,11 @@ internal enum ToolRoutingClassification
     Blocked = 0,
 
     /// <summary>
+    /// The tool is intentionally excluded from proxy exposure by the current proxy scope.
+    /// </summary>
+    IntentionallyBlocked,
+
+    /// <summary>
     /// The tool can use generic server-controlled project routing.
     /// </summary>
     AutomaticallyRouted,

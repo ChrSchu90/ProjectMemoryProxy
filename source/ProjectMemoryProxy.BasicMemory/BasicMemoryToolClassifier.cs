@@ -24,7 +24,15 @@ internal sealed class BasicMemoryToolClassifier
         "list_memory_projects"
     };
 
-    private static readonly HashSet<string> GlobalAllowlistedTools = new(StringComparer.Ordinal);
+    private static readonly HashSet<string> GlobalAllowlistedTools = new(StringComparer.Ordinal)
+    {
+        "basic_memory_diagnostics"
+    };
+
+    private static readonly HashSet<string> IntentionallyBlockedTools = new(StringComparer.Ordinal)
+    {
+        "list_workspaces"
+    };
 
     #endregion
 
@@ -49,7 +57,18 @@ internal sealed class BasicMemoryToolClassifier
     /// </summary>
     public ToolRoutingClassification Classify(string toolName, JsonElement inputSchema)
     {
+        return Classify(toolName, inputSchema, out _);
+    }
+
+    /// <summary>
+    /// Classifies a discovered tool using its canonical upstream name and input schema
+    /// and returns the routing analysis when schema-based classification was required.
+    /// </summary>
+    public ToolRoutingClassification Classify(string toolName, JsonElement inputSchema, out RoutingSchemaAnalysis? routingAnalysis)
+    {
         ArgumentException.ThrowIfNullOrWhiteSpace(toolName);
+
+        routingAnalysis = null;
 
         if (ExplicitAdapterTools.Contains(toolName))
             return ToolRoutingClassification.ExplicitAdapter;
@@ -58,9 +77,16 @@ internal sealed class BasicMemoryToolClassifier
             return ToolRoutingClassification.ProjectLifecycle;
 
         if (GlobalAllowlistedTools.Contains(toolName))
+        {
+            routingAnalysis = _routingSchemaGuard.Analyze(inputSchema);
             return ToolRoutingClassification.GlobalAllowlisted;
+        }
 
-        return _routingSchemaGuard.Analyze(inputSchema).IsAutomaticallyRoutable
+        if (IntentionallyBlockedTools.Contains(toolName))
+            return ToolRoutingClassification.IntentionallyBlocked;
+
+        routingAnalysis = _routingSchemaGuard.Analyze(inputSchema);
+        return routingAnalysis.IsAutomaticallyRoutable
                    ? ToolRoutingClassification.AutomaticallyRouted
                    : ToolRoutingClassification.Blocked;
     }
