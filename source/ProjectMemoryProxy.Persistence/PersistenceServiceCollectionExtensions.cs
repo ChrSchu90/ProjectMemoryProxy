@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using ProjectMemoryProxy.Core.Configuration;
-using ProjectMemoryProxy.Core.MemoryProject;
+using ProjectMemoryProxy.Core.Routing;
 using ProjectMemoryProxy.Persistence.MemoryProject;
 
 /// <summary>
@@ -55,7 +55,7 @@ public static class PersistenceServiceCollectionExtensions
 
         services.AddSingleton<DatabaseMigrator>();
         services.AddSingleton<IProjectRegistry, EfProjectRegistry>();
-        services.AddSingleton<MemoryProjectManager>();
+        services.AddSingleton<RoutingManager>();
         return services;
     }
 

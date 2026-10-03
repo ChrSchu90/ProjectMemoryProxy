@@ -1,0 +1,11 @@
+﻿<Project Sdk="MSTest.Sdk/4.0.2">
+
+	<PropertyGroup>
+		<IsTestProject>true</IsTestProject>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="../../source/ProjectMemoryProxy.Core/ProjectMemoryProxy.Core.csproj" />
+	</ItemGroup>
+
+</Project>

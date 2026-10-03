@@ -4,6 +4,7 @@ using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
+using ProjectMemoryProxy.Core.Routing;
 
 /// <summary>
 /// Represents a link from binding IDs to a basic-memory project.

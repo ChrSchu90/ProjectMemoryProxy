@@ -1,4 +1,4 @@
-namespace ProjectMemoryProxy.Core.MemoryProject;
+namespace ProjectMemoryProxy.Core.Routing;
 
 /// <summary>
 /// Provides persistent lifecycle state for memory projects.

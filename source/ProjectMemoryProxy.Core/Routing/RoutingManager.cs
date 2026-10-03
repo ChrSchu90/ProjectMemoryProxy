@@ -1,4 +1,4 @@
-namespace ProjectMemoryProxy.Core.MemoryProject;
+namespace ProjectMemoryProxy.Core.Routing;
 
 using System;
 using Microsoft.Extensions.Logging;
@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging;
 /// <summary>
 /// Coordinates project memory lifecycle across persistence and the filesystem.
 /// </summary>
-public sealed class MemoryProjectManager
+public sealed class RoutingManager
 {
     #region Static Fields
 
@@ -15,7 +15,7 @@ public sealed class MemoryProjectManager
     #region Private Fields
 
     private readonly IProjectRegistry _projectRegistry;
-    private readonly ILogger<MemoryProjectManager> _logger;
+    private readonly ILogger<RoutingManager> _logger;
     private readonly TimeProvider _timeProvider;
 
     #endregion
@@ -23,22 +23,22 @@ public sealed class MemoryProjectManager
     #region Constructors
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="MemoryProjectManager"/> class.
+    /// Initializes a new instance of the <see cref="projectRegistry"/> class.
     /// </summary>
-    /// <param name="projectRegistry">The memory project registry.</param>
+    /// <param name="projectRegistry">The project registry.</param>
     /// <param name="logger">The logger.</param>
-    public MemoryProjectManager(IProjectRegistry projectRegistry, ILogger<MemoryProjectManager> logger)
+    public RoutingManager(IProjectRegistry projectRegistry, ILogger<RoutingManager> logger)
         : this(projectRegistry, logger, TimeProvider.System)
     {
     }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="MemoryProjectManager"/> class with an explicit time provider.
+    /// Initializes a new instance of the <see cref="projectRegistry"/> class with an explicit time provider.
     /// </summary>
-    /// <param name="projectRegistry">The memory project registry.</param>
-    /// <param name="logger">The logger.</param>
+    /// <param name="logger">The memory project registry.</param>
+    /// <param name="projectRegistry">The project registry.</param>
     /// <param name="timeProvider">The time provider.</param>
-    internal MemoryProjectManager(IProjectRegistry projectRegistry, ILogger<MemoryProjectManager> logger, TimeProvider timeProvider)
+    internal RoutingManager(IProjectRegistry projectRegistry, ILogger<RoutingManager> logger, TimeProvider timeProvider)
     {
         _projectRegistry = projectRegistry ?? throw new ArgumentNullException(nameof(projectRegistry));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));

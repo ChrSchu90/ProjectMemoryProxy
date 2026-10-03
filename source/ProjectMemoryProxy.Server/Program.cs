@@ -1,3 +1,5 @@
+using System;
+using System.Reflection;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using ModelContextProtocol.AspNetCore;
@@ -7,8 +9,6 @@ using Serilog;
 using Serilog.Core;
 using Serilog.Events;
 using Serilog.Sinks.SystemConsole.Themes;
-using System;
-using System.Reflection;
 
 // Init logging
 var logLevelSwitch = new LoggingLevelSwitch { MinimumLevel = LogEventLevel.Information };

@@ -2,7 +2,7 @@ namespace ProjectMemoryProxy.Persistence.MemoryProject;
 
 using System;
 using Microsoft.EntityFrameworkCore;
-using ProjectMemoryProxy.Core.MemoryProject;
+using ProjectMemoryProxy.Core.Routing;
 
 /// <summary>
 /// Stores memory project lifecycle metadata in the DevHatch EF Core database.

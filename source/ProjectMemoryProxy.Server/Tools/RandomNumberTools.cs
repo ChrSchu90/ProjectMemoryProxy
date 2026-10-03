@@ -1,6 +1,6 @@
 using System;
-using ModelContextProtocol.Server;
 using System.ComponentModel;
+using ModelContextProtocol.Server;
 
 /// <summary>
 /// Sample MCP tools for demonstration purposes.
