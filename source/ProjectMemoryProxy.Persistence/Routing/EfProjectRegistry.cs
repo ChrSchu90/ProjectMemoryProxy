@@ -7,6 +7,7 @@ using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Data.Sqlite;
 
 /// <summary>
 /// Stores memory project lifecycle metadata in the EF Core database.
@@ -14,6 +15,9 @@ using System.Threading.Tasks;
 internal sealed class EfProjectRegistry : IProjectRegistry
 {
     #region Static Fields
+
+    private const int SqliteUniqueConstraintErrorCode = 2067;
+    private const int SqliteConstraintErrorCode = 19;
 
     #endregion
 
@@ -109,13 +113,31 @@ internal sealed class EfProjectRegistry : IProjectRegistry
         };
 
         dbContext.RoutingProjects.Add(entity);
-        await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (DbUpdateException ex) when (IsUniqueConstraintViolation(ex))
+        {
+            throw new ProjectRegistryConflictException("A project routing with the same Basic Memory project identifier or name already exists.", ex);
+        }
+
         return new ProjectRouting(entity.MemoryProjectId, entity.MemoryProjectName, entity.Status);
     }
 
     #endregion
 
     #region Private Methods
+
+    private static bool IsUniqueConstraintViolation(DbUpdateException exception)
+    {
+        return exception.InnerException is SqliteException
+        {
+            SqliteErrorCode: SqliteConstraintErrorCode,
+            SqliteExtendedErrorCode: SqliteUniqueConstraintErrorCode
+        };
+    }
 
     #endregion
 }

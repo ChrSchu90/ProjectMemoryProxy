@@ -68,12 +68,15 @@ public sealed class BasicMemoryServiceCollectionExtensionsTests
             BasicMemoryConnectionTimeout = TimeSpan.FromSeconds(30)
         }));
 
+        services.AddSingleton<IProjectRegistry>(new StubProjectRegistry(null));
+        
         services.AddBasicMemory();
         await using var serviceProvider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true });
         Assert.IsNotNull(serviceProvider.GetRequiredService<IBasicMemoryClient>());
         Assert.IsNotNull(serviceProvider.GetRequiredService<BasicMemoryToolCatalog>());
         Assert.IsNotNull(serviceProvider.GetRequiredService<BasicMemoryMirroredToolCatalog>());
         Assert.IsNotNull(serviceProvider.GetRequiredService<IBasicMemoryProjectDirectory>());
+        Assert.IsNotNull(serviceProvider.GetRequiredService<ProjectRegistryManager>());
     }
 
     /// <summary>
