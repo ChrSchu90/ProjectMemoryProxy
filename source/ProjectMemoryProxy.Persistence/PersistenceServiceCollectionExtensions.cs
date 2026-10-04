@@ -7,7 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using ProjectMemoryProxy.Core.Configuration;
 using ProjectMemoryProxy.Core.Routing;
-using ProjectMemoryProxy.Persistence.MemoryProject;
+using ProjectMemoryProxy.Persistence.Routing;
 
 /// <summary>
 /// Provides dependency-injection registration for persistence services.

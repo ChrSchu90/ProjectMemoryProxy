@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using ProjectMemoryProxy.Core.Routing;
 using ProjectMemoryProxy.Persistence.Entities;
-using ProjectMemoryProxy.Persistence.MemoryProject;
+using ProjectMemoryProxy.Persistence.Routing;
 
 /// <summary>
 /// Tests for <see cref="EfProjectRegistry"/>
@@ -244,6 +244,113 @@ public sealed class EfProjectRegistryTests
             });
 
         await Assert.ThrowsAsync<DbUpdateException>(() => dbContext.SaveChangesAsync());
+    }
+
+    /// <summary>
+    /// Verifies that a registered project routing can be found by its Basic Memory external identifier.
+    /// </summary>
+    [TestMethod]
+    public async Task FindByMemoryProjectIdAsyncReturnsRouting()
+    {
+        var memoryProjectId = Guid.NewGuid();
+        var memoryProjectName = "project-a";
+        await CreateDatabaseAsync(_databasePath, new ProjectRoutingEntity
+        {
+            MemoryProjectId = memoryProjectId,
+            MemoryProjectName = memoryProjectName,
+            Status = Status.Inactive
+        });
+
+        var registry = CreateRegistry(_databasePath);
+        var routing = await registry.FindByMemoryProjectIdAsync(memoryProjectId, CancellationToken.None);
+        Assert.IsNotNull(routing);
+        Assert.AreEqual(memoryProjectId, routing.MemoryProjectId);
+        Assert.AreEqual(memoryProjectName, routing.MemoryProjectName);
+        Assert.AreEqual(Status.Inactive, routing.Status);
+    }
+
+    /// <summary>
+    /// Verifies that a registered project routing can be found by its exact Basic Memory project name.
+    /// </summary>
+    [TestMethod]
+    public async Task FindByMemoryProjectNameAsyncReturnsRouting()
+    {
+        var memoryProjectId = Guid.NewGuid();
+        var memoryProjectName = "project-a";
+        await CreateDatabaseAsync(_databasePath, new ProjectRoutingEntity
+        {
+            MemoryProjectId = memoryProjectId,
+            MemoryProjectName = memoryProjectName,
+            Status = Status.Active
+        });
+
+        var registry = CreateRegistry(_databasePath);
+        var routing = await registry.FindByMemoryProjectNameAsync(memoryProjectName, CancellationToken.None);
+        Assert.IsNotNull(routing);
+        Assert.AreEqual(memoryProjectId, routing.MemoryProjectId);
+        Assert.AreEqual(memoryProjectName, routing.MemoryProjectName);
+        Assert.AreEqual(Status.Active, routing.Status);
+    }
+
+    /// <summary>
+    /// Verifies that project-routing lookups return no result when the requested Basic Memory identity is not registered.
+    /// </summary>
+    [TestMethod]
+    public async Task ProjectRoutingLookupsReturnNullWhenRoutingDoesNotExist()
+    {
+        await CreateDatabaseAsync(_databasePath, new ProjectRoutingEntity
+        {
+            MemoryProjectId = Guid.NewGuid(),
+            MemoryProjectName = "project-a"
+        });
+
+        var registry = CreateRegistry(_databasePath);
+        var byId = await registry.FindByMemoryProjectIdAsync(Guid.NewGuid(), CancellationToken.None);
+        var byName = await registry.FindByMemoryProjectNameAsync("missing-project", CancellationToken.None);
+        Assert.IsNull(byId);
+        Assert.IsNull(byName);
+    }
+
+    /// <summary>
+    /// Verifies that creating a project routing persists its Basic Memory identity and requested initial status.
+    /// </summary>
+    [TestMethod]
+    public async Task CreateAsyncPersistsProjectRouting()
+    {
+        var options = ContextOptions.Create(_databasePath, pooling: false);
+        await using (var dbContext = new ProjectMemoryProxyDbContext(options))
+        {
+            await dbContext.Database.MigrateAsync();
+        }
+
+        var memoryProjectId = Guid.NewGuid();
+        var memoryProjectName = "project-a";
+        var registry = CreateRegistry(_databasePath);
+
+        var created = await registry.CreateAsync(memoryProjectId, memoryProjectName, Status.Inactive, CancellationToken.None);
+        Assert.AreEqual(memoryProjectId, created.MemoryProjectId);
+        Assert.AreEqual(memoryProjectName, created.MemoryProjectName);
+        Assert.AreEqual(Status.Inactive, created.Status);
+
+        var persisted = await registry.FindByMemoryProjectIdAsync(memoryProjectId, CancellationToken.None);
+        Assert.IsNotNull(persisted);
+        Assert.AreEqual(created, persisted);
+    }
+
+    /// <summary>
+    /// Verifies that creating a project routing rejects unsupported status values before modifying persistence.
+    /// </summary>
+    [TestMethod]
+    public async Task CreateAsyncRejectsUnsupportedStatus()
+    {
+        var options = ContextOptions.Create(_databasePath, pooling: false);
+        await using (var dbContext = new ProjectMemoryProxyDbContext(options))
+        {
+            await dbContext.Database.MigrateAsync();
+        }
+
+        var registry = CreateRegistry(_databasePath);
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => registry.CreateAsync(Guid.NewGuid(), "project-a", (Status)int.MaxValue, CancellationToken.None));
     }
 
     #endregion
