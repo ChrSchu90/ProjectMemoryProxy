@@ -54,5 +54,23 @@ public interface IProjectRegistry
     /// <returns>The created project routing.</returns>
     Task<ProjectRouting> CreateAsync(Guid memoryProjectId, string memoryProjectName, Status status, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Finds the registered binding for an exact technical context identifier.
+    /// </summary>
+    /// <param name="contextId">The exact context identifier.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The registered binding, or <see langword="null"/> when no binding exists.</returns>
+    Task<ContextBinding?> FindBindingAsync(ContextId contextId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Creates a context binding for an existing registered project routing.
+    /// </summary>
+    /// <param name="contextId">The exact context identifier.</param>
+    /// <param name="memoryProjectId">The target Basic Memory project identifier.</param>
+    /// <param name="status">The initial binding status.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The created binding.</returns>
+    Task<ContextBinding> CreateBindingAsync(ContextId contextId, Guid memoryProjectId, Status status, CancellationToken cancellationToken = default);
+
     #endregion
 }

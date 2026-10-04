@@ -17,8 +17,9 @@ public sealed class ProjectRegistryManagerTests
     #region Static Fields
 
     private static readonly Guid ProjectAId = Guid.Parse("11111111-2222-3333-4444-555555555555");
-
     private static readonly Guid ProjectBId = Guid.Parse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
+    private static readonly ContextId GitContext = ParseContextId("git:github.com/ChrSchu90/ProjectMemoryProxy");
+    private static readonly ContextId ChatGptContext = ParseContextId("chatgpt-project:chatty-mcp-and-aiharborvm");
 
     #endregion
 
@@ -267,6 +268,170 @@ public sealed class ProjectRegistryManagerTests
         Assert.AreEqual(0, projectRegistry.TotalCallCount);
     }
 
+    /// <summary>
+    /// Verifies that an unbound technical context is bound actively to an existing active project routing.
+    /// </summary>
+    [TestMethod]
+    public async Task BindContextAsyncCreatesActiveBinding()
+    {
+        var projectDirectory = CreateProjectDirectory(BasicMemoryProjectValidationStatus.ExactMatch);
+        var projectRegistry = new StubProjectRegistry { ProjectById = new ProjectRouting(ProjectAId, "project-a", Status.Active) };
+        var manager = new ProjectRegistryManager(projectDirectory, projectRegistry);
+
+        var result = await manager.BindContextAsync(GitContext, ProjectAId);
+        Assert.AreEqual(ContextBindingRegistrationStatus.Bound, result.Status);
+
+        Assert.IsNotNull(result.Binding);
+        Assert.AreEqual(GitContext, result.Binding.ContextId);
+        Assert.AreEqual(ProjectAId, result.Binding.MemoryProjectId);
+        Assert.AreEqual(Status.Active, result.Binding.Status);
+
+        Assert.AreEqual(1, projectRegistry.FindByIdCallCount);
+        Assert.AreEqual(1, projectRegistry.FindBindingCallCount);
+        Assert.AreEqual(1, projectRegistry.CreateBindingCallCount);
+
+        Assert.AreEqual(GitContext, projectRegistry.CreatedContextId);
+        Assert.AreEqual(ProjectAId, projectRegistry.CreatedBindingMemoryProjectId);
+        Assert.AreEqual(Status.Active, projectRegistry.CreatedBindingStatus);
+    }
+
+    /// <summary>
+    /// Verifies that an exact existing context binding is treated as idempotently bound without changing its status.
+    /// </summary>
+    [TestMethod]
+    public async Task BindContextAsyncReturnsAlreadyBoundForExactBinding()
+    {
+        var existingBinding = new ContextBinding(GitContext, ProjectAId, Status.Inactive);
+        var projectDirectory = CreateProjectDirectory(BasicMemoryProjectValidationStatus.ExactMatch);
+        var projectRegistry = new StubProjectRegistry { ProjectById = new ProjectRouting(ProjectAId, "project-a", Status.Active), Binding = existingBinding };
+        var manager = new ProjectRegistryManager(projectDirectory, projectRegistry);
+
+        var result = await manager.BindContextAsync(GitContext, ProjectAId);
+        Assert.AreEqual(ContextBindingRegistrationStatus.AlreadyBound, result.Status);
+        Assert.AreEqual(existingBinding, result.Binding);
+        Assert.AreEqual(Status.Inactive, result.Binding!.Status);
+        Assert.AreEqual(0, projectRegistry.CreateBindingCallCount);
+    }
+
+    /// <summary>
+    /// Verifies that a context cannot be bound when the requested Basic Memory project has no registered project routing.
+    /// </summary>
+    [TestMethod]
+    public async Task BindContextAsyncRejectsMissingProjectRouting()
+    {
+        var projectDirectory = CreateProjectDirectory(BasicMemoryProjectValidationStatus.ExactMatch);
+        var projectRegistry = new StubProjectRegistry();
+        var manager = new ProjectRegistryManager(projectDirectory, projectRegistry);
+
+        var result = await manager.BindContextAsync(GitContext, ProjectAId);
+        Assert.AreEqual(ContextBindingRegistrationStatus.ProjectRoutingNotFound, result.Status);
+        Assert.IsNull(result.Binding);
+        Assert.AreEqual(1, projectRegistry.FindByIdCallCount);
+        Assert.AreEqual(0, projectRegistry.FindBindingCallCount);
+        Assert.AreEqual(0, projectRegistry.CreateBindingCallCount);
+    }
+
+    /// <summary>
+    /// Verifies that a context cannot be bound to an inactive project routing.
+    /// </summary>
+    [TestMethod]
+    public async Task BindContextAsyncRejectsInactiveProjectRouting()
+    {
+        var projectDirectory = CreateProjectDirectory(BasicMemoryProjectValidationStatus.ExactMatch);
+        var projectRegistry = new StubProjectRegistry { ProjectById = new ProjectRouting(ProjectAId, "project-a", Status.Inactive) };
+        var manager = new ProjectRegistryManager(projectDirectory, projectRegistry);
+
+        var result = await manager.BindContextAsync(GitContext, ProjectAId);
+        Assert.AreEqual(ContextBindingRegistrationStatus.ProjectRoutingInactive, result.Status);
+        Assert.IsNull(result.Binding);
+        Assert.AreEqual(0, projectRegistry.FindBindingCallCount);
+        Assert.AreEqual(0, projectRegistry.CreateBindingCallCount);
+    }
+
+    /// <summary>
+    /// Verifies that an existing context binding to another project is reported as a binding conflict.
+    /// </summary>
+    [TestMethod]
+    public async Task BindContextAsyncReportsDifferentProjectConflict()
+    {
+        var projectDirectory = CreateProjectDirectory(BasicMemoryProjectValidationStatus.ExactMatch);
+        var projectRegistry = new StubProjectRegistry
+        {
+            ProjectById = new ProjectRouting(ProjectAId, "project-a", Status.Active),
+            Binding = new ContextBinding(GitContext, ProjectBId, Status.Active)
+        };
+
+        var manager = new ProjectRegistryManager(projectDirectory, projectRegistry);
+        var result = await manager.BindContextAsync(GitContext, ProjectAId);
+        Assert.AreEqual(ContextBindingRegistrationStatus.ContextAlreadyBoundToDifferentProject, result.Status);
+        Assert.IsNull(result.Binding);
+        Assert.AreEqual(0, projectRegistry.CreateBindingCallCount);
+    }
+
+    /// <summary>
+    /// Verifies that a concurrent exact binding insert is recovered by re-reading registry state and returning an idempotent success.
+    /// </summary>
+    [TestMethod]
+    public async Task BindContextAsyncHandlesConcurrentExactInsert()
+    {
+        var concurrentBinding = new ContextBinding(GitContext, ProjectAId, Status.Active);
+        var projectDirectory = CreateProjectDirectory(BasicMemoryProjectValidationStatus.ExactMatch);
+        var projectRegistry = new StubProjectRegistry { ProjectById = new ProjectRouting(ProjectAId, "project-a", Status.Active) };
+        projectRegistry.CreateBindingHandler = (contextId, memoryProjectId, status, cancellationToken) =>
+        {
+            projectRegistry.Binding = concurrentBinding;
+            throw new ProjectRegistryConflictException("A concurrent writer created the binding.");
+        };
+
+        var manager = new ProjectRegistryManager(projectDirectory, projectRegistry);
+        var result = await manager.BindContextAsync(GitContext, ProjectAId);
+        Assert.AreEqual(ContextBindingRegistrationStatus.AlreadyBound, result.Status);
+        Assert.AreEqual(concurrentBinding, result.Binding);
+        Assert.AreEqual(1, projectRegistry.CreateBindingCallCount);
+
+        // One lookup before CreateBindingAsync and one after the database uniqueness conflict.
+        Assert.AreEqual(2, projectRegistry.FindBindingCallCount);
+    }
+
+    /// <summary>
+    /// Verifies that an unresolved concurrent binding write conflict fails closed when re-reading reveals no classifiable state.
+    /// </summary>
+    [TestMethod]
+    public async Task BindContextAsyncFailsClosedForUnresolvedWriteConflict()
+    {
+        var projectDirectory = CreateProjectDirectory(BasicMemoryProjectValidationStatus.ExactMatch);
+        var projectRegistry = new StubProjectRegistry
+        {
+            ProjectById = new ProjectRouting(ProjectAId, "project-a", Status.Active),
+            CreateBindingHandler = (contextId, memoryProjectId, status, cancellationToken) =>
+                throw new ProjectRegistryConflictException("A concurrent binding write failed.")
+        };
+
+        var manager = new ProjectRegistryManager(projectDirectory, projectRegistry);
+        var result = await manager.BindContextAsync(GitContext, ProjectAId);
+        Assert.AreEqual(ContextBindingRegistrationStatus.RegistryWriteConflict, result.Status);
+
+        Assert.IsNull(result.Binding);
+        Assert.AreEqual(1, projectRegistry.CreateBindingCallCount);
+        Assert.AreEqual(2, projectRegistry.FindBindingCallCount);
+    }
+
+    /// <summary>
+    /// Verifies that binding rejects an empty Basic Memory project identifier before accessing registry state.
+    /// </summary>
+    [TestMethod]
+    public async Task BindContextAsyncRejectsEmptyProjectId()
+    {
+        var projectDirectory = CreateProjectDirectory(
+            BasicMemoryProjectValidationStatus.ExactMatch);
+
+        var projectRegistry = new StubProjectRegistry();
+
+        var manager = new ProjectRegistryManager(projectDirectory, projectRegistry);
+        await Assert.ThrowsAsync<ArgumentException>(() => manager.BindContextAsync(GitContext, Guid.Empty));
+        Assert.AreEqual(0, projectRegistry.TotalCallCount);
+    }
+
     #endregion
 
     #region Private Methods
@@ -286,6 +451,14 @@ public sealed class ProjectRegistryManagerTests
         Assert.IsNull(result.Routing);
         Assert.AreEqual(1, projectDirectory.ValidateCallCount);
         Assert.AreEqual(0, projectRegistry.TotalCallCount);
+    }
+
+    private static ContextId ParseContextId(string value)
+    {
+        if (!ContextId.TryParse(value, out var contextId))
+            throw new InvalidOperationException($"The test context identifier '{value}' is invalid.");
+
+        return contextId;
     }
 
     #endregion
@@ -342,13 +515,27 @@ public sealed class ProjectRegistryManagerTests
 
         public Func<Guid, string, Status, CancellationToken, Task<ProjectRouting>>? CreateHandler { get; set; }
 
+        public ContextBinding? Binding { get; set; }
+
+        public Func<ContextId, Guid, Status, CancellationToken, Task<ContextBinding>>? CreateBindingHandler { get; set; }
+
+        public int FindBindingCallCount { get; private set; }
+
+        public int CreateBindingCallCount { get; private set; }
+
+        public ContextId? CreatedContextId { get; private set; }
+
+        public Guid? CreatedBindingMemoryProjectId { get; private set; }
+
+        public Status? CreatedBindingStatus { get; private set; }
+
         public int FindByIdCallCount { get; private set; }
 
         public int FindByNameCallCount { get; private set; }
 
         public int CreateCallCount { get; private set; }
 
-        public int TotalCallCount => FindByIdCallCount + FindByNameCallCount + CreateCallCount;
+        public int TotalCallCount => FindByIdCallCount + FindByNameCallCount + CreateCallCount + FindBindingCallCount + CreateBindingCallCount;
 
         public Guid? CreatedMemoryProjectId { get; private set; }
 
@@ -390,6 +577,26 @@ public sealed class ProjectRegistryManagerTests
             return CreateHandler != null ?
                        CreateHandler(memoryProjectId, memoryProjectName, status, cancellationToken) :
                        Task.FromResult(new ProjectRouting(memoryProjectId, memoryProjectName, status));
+        }
+
+        public Task<ContextBinding?> FindBindingAsync(ContextId contextId, CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            FindBindingCallCount++;
+            return Task.FromResult(Binding);
+        }
+
+        public Task<ContextBinding> CreateBindingAsync(ContextId contextId, Guid memoryProjectId, Status status, CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            CreateBindingCallCount++;
+            CreatedContextId = contextId;
+            CreatedBindingMemoryProjectId = memoryProjectId;
+            CreatedBindingStatus = status;
+            return CreateBindingHandler != null ?
+                       CreateBindingHandler(contextId, memoryProjectId, status, cancellationToken) :
+                       Task.FromResult(new ContextBinding(contextId, memoryProjectId, status));
         }
 
         #endregion

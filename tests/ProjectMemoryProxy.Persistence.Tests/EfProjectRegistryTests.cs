@@ -5,6 +5,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using ProjectMemoryProxy.Core.Routing;
 using ProjectMemoryProxy.Persistence.Entities;
@@ -351,6 +352,180 @@ public sealed class EfProjectRegistryTests
 
         var registry = CreateRegistry(_databasePath);
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => registry.CreateAsync(Guid.NewGuid(), "project-a", (Status)int.MaxValue, CancellationToken.None));
+    }
+
+    /// <summary>
+    /// Verifies that an exact registered context binding can be found with its target project identifier and persisted status.
+    /// </summary>
+    [TestMethod]
+    public async Task FindBindingAsyncReturnsExactBinding()
+    {
+        var memoryProjectId = Guid.NewGuid();
+        await CreateDatabaseAsync(_databasePath, new ProjectRoutingEntity
+        {
+            MemoryProjectId = memoryProjectId,
+            MemoryProjectName = "project-a",
+            Bindings =
+                {
+                    new ContextBindingEntity
+                        {
+                            BindingType = BindingType.GitRepository,
+                            BindingName = "github.com/ChrSchu90/ProjectMemoryProxy",
+                            Status = Status.Inactive
+                        }
+                }
+        });
+
+        var registry = CreateRegistry(_databasePath);
+        Assert.IsTrue(ContextId.TryParse("git:github.com/ChrSchu90/ProjectMemoryProxy", out var contextId));
+
+        var binding = await registry.FindBindingAsync(contextId!, CancellationToken.None);
+        Assert.IsNotNull(binding);
+        Assert.AreEqual(contextId, binding.ContextId);
+        Assert.AreEqual(memoryProjectId, binding.MemoryProjectId);
+        Assert.AreEqual(Status.Inactive, binding.Status);
+    }
+
+    /// <summary>
+    /// Verifies that binding lookup returns no result when the exact technical context is not registered.
+    /// </summary>
+    [TestMethod]
+    public async Task FindBindingAsyncReturnsNullForUnknownContext()
+    {
+        await CreateDatabaseAsync(_databasePath,
+            new ProjectRoutingEntity
+            {
+                MemoryProjectId = Guid.NewGuid(),
+                MemoryProjectName = "project-a",
+                Bindings =
+                {
+                    new ContextBindingEntity
+                    {
+                        BindingType = BindingType.GitRepository,
+                        BindingName = "github.com/ChrSchu90/ProjectMemoryProxy"
+                    }
+                }
+            });
+
+        var registry = CreateRegistry(_databasePath);
+        Assert.IsTrue(ContextId.TryParse("git:github.com/ChrSchu90/OtherRepository", out var contextId));
+
+        var binding = await registry.FindBindingAsync(contextId!, CancellationToken.None);
+        Assert.IsNull(binding);
+    }
+
+    /// <summary>
+    /// Verifies that creating a context binding persists the requested target project and initial status.
+    /// </summary>
+    [TestMethod]
+    public async Task CreateBindingAsyncPersistsBinding()
+    {
+        var options = ContextOptions.Create(_databasePath, pooling: false);
+        await using (var dbContext = new ProjectMemoryProxyDbContext(options))
+        {
+            await dbContext.Database.MigrateAsync();
+        }
+
+        var memoryProjectId = Guid.NewGuid();
+        var registry = CreateRegistry(_databasePath);
+
+        await registry.CreateAsync(memoryProjectId, "project-a", Status.Active, CancellationToken.None);
+        Assert.IsTrue(ContextId.TryParse("chatgpt-project:chatty-mcp-and-aiharborvm", out var contextId));
+
+        var created = await registry.CreateBindingAsync(contextId!, memoryProjectId, Status.Inactive, CancellationToken.None);
+        Assert.AreEqual(contextId, created.ContextId);
+        Assert.AreEqual(memoryProjectId, created.MemoryProjectId);
+        Assert.AreEqual(Status.Inactive, created.Status);
+
+        var persisted = await registry.FindBindingAsync(contextId!, CancellationToken.None);
+        Assert.IsNotNull(persisted);
+        Assert.AreEqual(created, persisted);
+    }
+
+    /// <summary>
+    /// Verifies that creating a context binding fails when its target project routing is not registered.
+    /// </summary>
+    [TestMethod]
+    public async Task CreateBindingAsyncRejectsMissingProjectRouting()
+    {
+        var options = ContextOptions.Create(_databasePath, pooling: false);
+        await using (var dbContext = new ProjectMemoryProxyDbContext(options))
+        {
+            await dbContext.Database.MigrateAsync();
+        }
+
+        var registry = CreateRegistry(_databasePath);
+        Assert.IsTrue(ContextId.TryParse("git:github.com/ChrSchu90/ProjectMemoryProxy", out var contextId));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => registry.CreateBindingAsync(contextId!, Guid.NewGuid(), Status.Active, CancellationToken.None));
+    }
+
+    /// <summary>
+    /// Verifies that creating a duplicate exact context binding reports a registry conflict instead of leaking an EF Core exception.
+    /// </summary>
+    [TestMethod]
+    public async Task CreateBindingAsyncReportsDuplicateContextConflict()
+    {
+        var options = ContextOptions.Create(_databasePath, pooling: false);
+        await using (var dbContext = new ProjectMemoryProxyDbContext(options))
+        {
+            await dbContext.Database.MigrateAsync();
+        }
+
+        var projectAId = Guid.NewGuid();
+        var projectBId = Guid.NewGuid();
+        var registry = CreateRegistry(_databasePath);
+
+        await registry.CreateAsync(projectAId, "project-a", Status.Active, CancellationToken.None);
+        await registry.CreateAsync(projectBId, "project-b", Status.Active, CancellationToken.None);
+        Assert.IsTrue(ContextId.TryParse("git:github.com/ChrSchu90/ProjectMemoryProxy", out var contextId));
+
+        await registry.CreateBindingAsync(contextId!, projectAId, Status.Active, CancellationToken.None);
+        await Assert.ThrowsAsync<ProjectRegistryConflictException>(() => registry.CreateBindingAsync(contextId!, projectBId, Status.Active, CancellationToken.None));
+    }
+
+    /// <summary>
+    /// Verifies that creating a context binding rejects unsupported status values before modifying persistence.
+    /// </summary>
+    [TestMethod]
+    public async Task CreateBindingAsyncRejectsUnsupportedStatus()
+    {
+        var options = ContextOptions.Create(_databasePath, pooling: false);
+        await using (var dbContext = new ProjectMemoryProxyDbContext(options))
+        {
+            await dbContext.Database.MigrateAsync();
+        }
+
+        var memoryProjectId = Guid.NewGuid();
+        var registry = CreateRegistry(_databasePath);
+
+        await registry.CreateAsync(memoryProjectId, "project-a", Status.Active, CancellationToken.None);
+        Assert.IsTrue(ContextId.TryParse("git:github.com/ChrSchu90/ProjectMemoryProxy", out var contextId));
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => registry.CreateBindingAsync(contextId!, memoryProjectId, (Status)int.MaxValue, CancellationToken.None));
+    }
+
+    /// <summary>
+    /// Verifies that a project routing and active context binding created through the registry resolve through the runtime routing manager.
+    /// </summary>
+    [TestMethod]
+    public async Task CreatedProjectAndBindingResolveThroughRoutingManager()
+    {
+        var options = ContextOptions.Create(_databasePath, pooling: false);
+        await using (var dbContext = new ProjectMemoryProxyDbContext(options))
+        {
+            await dbContext.Database.MigrateAsync();
+        }
+
+        var memoryProjectId = Guid.NewGuid(); const string memoryProjectName = "project-a";
+        Assert.IsTrue(ContextId.TryParse("git:github.com/ChrSchu90/ProjectMemoryProxy", out var contextId));
+        var registry = CreateRegistry(_databasePath);
+        await registry.CreateAsync(memoryProjectId, memoryProjectName, Status.Active, CancellationToken.None);
+        await registry.CreateBindingAsync(contextId!, memoryProjectId, Status.Active, CancellationToken.None);
+        var routingManager = new RoutingManager(registry, NullLogger<RoutingManager>.Instance);
+
+        var resolution = await routingManager.ResolveContextAsync(contextId!, CancellationToken.None);
+        Assert.AreEqual(ContextResolutionStatus.Resolved, resolution.Status);
+        Assert.AreEqual(memoryProjectId, resolution.MemoryProjectId);
+        Assert.AreEqual(memoryProjectName, resolution.MemoryProjectName);
     }
 
     #endregion

@@ -572,6 +572,16 @@ public sealed class BasicMemoryContractTests
             throw new NotSupportedException();
         }
 
+        public Task<ContextBinding?> FindBindingAsync(ContextId contextId, CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<ContextBinding> CreateBindingAsync(ContextId contextId, Guid memoryProjectId, Status status, CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException();
+        }
+
         #endregion
     }
 

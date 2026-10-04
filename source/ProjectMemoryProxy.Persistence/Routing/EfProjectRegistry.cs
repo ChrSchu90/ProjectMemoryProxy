@@ -126,6 +126,68 @@ internal sealed class EfProjectRegistry : IProjectRegistry
         return new ProjectRouting(entity.MemoryProjectId, entity.MemoryProjectName, entity.Status);
     }
 
+    /// <inheritdoc />
+    public async Task<ContextBinding?> FindBindingAsync(ContextId contextId, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(contextId);
+        await using var dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+        var binding = await dbContext.RoutingProjects
+                          .AsNoTracking()
+                          .Where(project => project.Bindings.Any(item => item.BindingType == contextId.BindingType && item.BindingName == contextId.BindingName))
+                          .Select(project => new
+                          {
+                              project.MemoryProjectId,
+                              BindingStatus = project.Bindings
+                                .Where(item => item.BindingType == contextId.BindingType && item.BindingName == contextId.BindingName)
+                                .Select(item => item.Status)
+                                .Single()
+                          })
+                          .SingleOrDefaultAsync(cancellationToken)
+                          .ConfigureAwait(false);
+
+        return binding != null ? new ContextBinding(contextId, binding.MemoryProjectId, binding.BindingStatus) : null;
+    }
+
+    /// <inheritdoc />
+    public async Task<ContextBinding> CreateBindingAsync(ContextId contextId, Guid memoryProjectId, Status status, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(contextId);
+        if (memoryProjectId == Guid.Empty)
+            throw new ArgumentException("The Basic Memory project identifier must not be empty.", nameof(memoryProjectId));
+
+        if (status is not Status.Active and not Status.Inactive)
+            throw new ArgumentOutOfRangeException(nameof(status), status, "The context binding status is unsupported.");
+
+
+        await using var dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+        var project = await dbContext.RoutingProjects
+                          .SingleOrDefaultAsync(item => item.MemoryProjectId == memoryProjectId, cancellationToken)
+                          .ConfigureAwait(false);
+
+        if (project == null)
+            throw new InvalidOperationException($"No registered project routing exists for Basic Memory project '{memoryProjectId:D}'.");
+
+        var entity = new ContextBindingEntity
+        {
+            BindingType = contextId.BindingType,
+            BindingName = contextId.BindingName,
+            Status = status
+        };
+
+        project.Bindings.Add(entity);
+
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (DbUpdateException ex) when (IsUniqueConstraintViolation(ex))
+        {
+            throw new ProjectRegistryConflictException($"A binding already exists for context '{contextId}'.", ex);
+        }
+
+        return new ContextBinding(contextId, memoryProjectId, entity.Status);
+    }
+
     #endregion
 
     #region Private Methods

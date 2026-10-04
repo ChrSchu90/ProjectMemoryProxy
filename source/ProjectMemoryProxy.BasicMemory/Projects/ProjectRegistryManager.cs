@@ -57,7 +57,7 @@ public sealed class ProjectRegistryManager
 
         if (validation.Status != BasicMemoryProjectValidationStatus.ExactMatch)
             return new ProjectRegistrationResult(MapValidationStatus(validation.Status), null);
-        
+
         var existing = await GetExistingRegistrationResultAsync(memoryProjectId, memoryProjectName, cancellationToken).ConfigureAwait(false);
         if (existing != null)
             return existing;
@@ -76,6 +76,42 @@ public sealed class ProjectRegistryManager
             // Re-read persisted state rather than relying on process-local synchronization.
             return await GetExistingRegistrationResultAsync(memoryProjectId, memoryProjectName, cancellationToken).ConfigureAwait(false)
                 ?? new ProjectRegistrationResult(ProjectRegistrationStatus.RegistryWriteConflict, null);
+        }
+    }
+
+    /// <summary>
+    /// Binds an exact technical context to an active registered project routing.
+    /// </summary>
+    public async Task<ContextBindingRegistrationResult> BindContextAsync(ContextId contextId, Guid memoryProjectId, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(contextId);
+
+        if (memoryProjectId == Guid.Empty)
+            throw new ArgumentException("The Basic Memory project identifier must not be empty.", nameof(memoryProjectId));
+
+        var routing = await _projectRegistry.FindByMemoryProjectIdAsync(memoryProjectId, cancellationToken).ConfigureAwait(false);
+        if (routing == null)
+            return new ContextBindingRegistrationResult(ContextBindingRegistrationStatus.ProjectRoutingNotFound, null);
+
+        if (routing.Status != Status.Active)
+            return new ContextBindingRegistrationResult(ContextBindingRegistrationStatus.ProjectRoutingInactive, null);
+
+        var existing = await GetExistingBindingResultAsync(contextId, memoryProjectId, cancellationToken).ConfigureAwait(false);
+        if (existing != null)
+            return existing;
+
+        try
+        {
+            var binding = await _projectRegistry
+                .CreateBindingAsync(contextId, memoryProjectId, Status.Active, cancellationToken)
+                .ConfigureAwait(false);
+
+            return new ContextBindingRegistrationResult(ContextBindingRegistrationStatus.Bound, binding);
+        }
+        catch (ProjectRegistryConflictException)
+        {
+            return await GetExistingBindingResultAsync(contextId, memoryProjectId, cancellationToken).ConfigureAwait(false) ?? 
+                   new ContextBindingRegistrationResult(ContextBindingRegistrationStatus.RegistryWriteConflict, null);
         }
     }
 
@@ -118,6 +154,18 @@ public sealed class ProjectRegistryManager
             BasicMemoryProjectValidationStatus.IdentityConflict => ProjectRegistrationStatus.BasicMemoryProjectIdentityConflict,
             _ => ProjectRegistrationStatus.BasicMemoryValidationFailed
         };
+    }
+
+    private async Task<ContextBindingRegistrationResult?> GetExistingBindingResultAsync(ContextId contextId, Guid memoryProjectId, CancellationToken cancellationToken)
+    {
+        var binding = await _projectRegistry.FindBindingAsync(contextId, cancellationToken).ConfigureAwait(false);
+        if (binding == null)
+            return null;
+
+        if (binding.MemoryProjectId == memoryProjectId)
+            return new ContextBindingRegistrationResult(ContextBindingRegistrationStatus.AlreadyBound, binding);
+
+        return new ContextBindingRegistrationResult(ContextBindingRegistrationStatus.ContextAlreadyBoundToDifferentProject, null);
     }
 
     #endregion
