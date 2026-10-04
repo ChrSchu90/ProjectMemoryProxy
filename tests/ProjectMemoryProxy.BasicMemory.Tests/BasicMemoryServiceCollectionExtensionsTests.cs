@@ -21,6 +21,7 @@ using ModelContextProtocol.Server;
 using ProjectMemoryProxy.BasicMemory.Client;
 using ProjectMemoryProxy.BasicMemory.Discovery;
 using ProjectMemoryProxy.BasicMemory.Mirroring;
+using ProjectMemoryProxy.BasicMemory.Projects;
 using ProjectMemoryProxy.Core.Configuration;
 using ProjectMemoryProxy.Core.Routing;
 
@@ -72,6 +73,7 @@ public sealed class BasicMemoryServiceCollectionExtensionsTests
         Assert.IsNotNull(serviceProvider.GetRequiredService<IBasicMemoryClient>());
         Assert.IsNotNull(serviceProvider.GetRequiredService<BasicMemoryToolCatalog>());
         Assert.IsNotNull(serviceProvider.GetRequiredService<BasicMemoryMirroredToolCatalog>());
+        Assert.IsNotNull(serviceProvider.GetRequiredService<IBasicMemoryProjectDirectory>());
     }
 
     /// <summary>

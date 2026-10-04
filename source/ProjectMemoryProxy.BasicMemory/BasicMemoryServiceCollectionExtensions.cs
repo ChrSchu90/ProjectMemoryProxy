@@ -11,6 +11,7 @@ using ProjectMemoryProxy.BasicMemory.Client;
 using ProjectMemoryProxy.BasicMemory.Discovery;
 using ProjectMemoryProxy.BasicMemory.MCP;
 using ProjectMemoryProxy.BasicMemory.Mirroring;
+using ProjectMemoryProxy.BasicMemory.Projects;
 using ProjectMemoryProxy.Core.Routing;
 
 /// <summary>
@@ -45,6 +46,7 @@ public static class BasicMemoryServiceCollectionExtensions
 
         services.AddSingleton<IBasicMemoryClient, BasicMemoryClient>();
         services.AddSingleton<BasicMemoryToolCatalog>();
+        services.AddSingleton<IBasicMemoryProjectDirectory, BasicMemoryProjectDirectory>();
         services.AddSingleton<BasicMemoryMirroredToolCatalog>();
         services.AddSingleton<BasicMemoryMirroredMcpServerToolRegistry>();
         services.AddSingleton<IPostConfigureOptions<McpServerOptions>, BasicMemoryMcpServerOptionsSetup>();

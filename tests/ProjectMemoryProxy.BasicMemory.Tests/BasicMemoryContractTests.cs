@@ -21,6 +21,7 @@ using ModelContextProtocol.Protocol;
 using ProjectMemoryProxy.BasicMemory.Client;
 using ProjectMemoryProxy.BasicMemory.Discovery;
 using ProjectMemoryProxy.BasicMemory.Policy;
+using ProjectMemoryProxy.BasicMemory.Projects;
 using ProjectMemoryProxy.Core.Configuration;
 using ProjectMemoryProxy.Core.Routing;
 
@@ -124,6 +125,10 @@ public sealed class BasicMemoryContractTests
         await using var upstreamClient = new BasicMemoryClient(options, NullLoggerFactory.Instance, NullLogger<BasicMemoryClient>.Instance);
         using var upstreamCatalog = new BasicMemoryToolCatalog(upstreamClient, NullLogger<BasicMemoryToolCatalog>.Instance);
         await upstreamCatalog.InitializeAsync(cancellationToken);
+
+        var projectDirectory = new BasicMemoryProjectDirectory(upstreamCatalog);
+        var projects = await projectDirectory.ListAsync(cancellationToken);
+        Console.WriteLine($"Local Basic Memory projects: {projects.Count}");
 
         var classifier = new BasicMemoryToolClassifier();
         var classifications = upstreamCatalog.Tools
