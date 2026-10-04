@@ -92,5 +92,13 @@ public interface IProjectRegistry
     /// <returns><see langword="true"/> when exactly one binding was updated; otherwise <see langword="false"/>.</returns>
     Task<bool> TryUpdateBindingStatusAsync(ContextId contextId, Status expectedStatus, Status newStatus, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Attempts to remove the exact registered context binding.
+    /// </summary>
+    /// <param name="contextId">The exact technical context identifier.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns><see langword="true"/> when exactly one binding was removed; otherwise <see langword="false"/>.</returns>
+    Task<bool> TryRemoveBindingAsync(ContextId contextId, CancellationToken cancellationToken = default);
+
     #endregion
 }

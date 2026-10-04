@@ -723,6 +723,85 @@ public sealed class ProjectRegistryManagerTests
         Assert.AreEqual(2, projectRegistry.FindBindingCallCount);
     }
 
+    /// <summary>
+    /// Verifies that explicit unbind removes the exact context binding without inspecting its status or target project routing.
+    /// </summary>
+    [TestMethod]
+    public async Task UnbindContextAsyncRemovesBinding()
+    {
+        var projectDirectory = CreateProjectDirectory(BasicMemoryProjectValidationStatus.ExactMatch);
+        var projectRegistry = new StubProjectRegistry { Binding = new ContextBinding(GitContext, ProjectAId, Status.Inactive) };
+        var manager = new ProjectRegistryManager(projectDirectory, projectRegistry);
+
+        var result = await manager.UnbindContextAsync(GitContext);
+        Assert.AreEqual(ContextBindingRemovalStatus.Unbound, result.Status);
+        Assert.AreEqual(1, projectRegistry.TryRemoveBindingCallCount);
+        Assert.AreEqual(GitContext, projectRegistry.RemovedBindingContextId);
+        Assert.AreEqual(0, projectRegistry.FindBindingCallCount);
+        Assert.AreEqual(0, projectRegistry.FindByIdCallCount);
+        Assert.AreEqual(0, projectDirectory.ValidateCallCount);
+    }
+
+    /// <summary>
+    /// Verifies that unbinding an already unbound context is treated as an idempotent expected outcome after re-reading registry state.
+    /// </summary>
+    [TestMethod]
+    public async Task UnbindContextAsyncReturnsAlreadyUnboundForMissingBinding()
+    {
+        var projectDirectory = CreateProjectDirectory(BasicMemoryProjectValidationStatus.ExactMatch);
+        var projectRegistry = new StubProjectRegistry
+        {
+            TryRemoveBindingHandler = (contextId, cancellationToken) => Task.FromResult(false)
+        };
+
+        var manager = new ProjectRegistryManager(projectDirectory, projectRegistry);
+        var result = await manager.UnbindContextAsync(GitContext);
+        Assert.AreEqual(ContextBindingRemovalStatus.AlreadyUnbound, result.Status);
+        Assert.AreEqual(1, projectRegistry.TryRemoveBindingCallCount);
+        Assert.AreEqual(1, projectRegistry.FindBindingCallCount);
+    }
+
+    /// <summary>
+    /// Verifies that a concurrent exact unbind is recovered as an idempotent result when the binding has disappeared on re-read.
+    /// </summary>
+    [TestMethod]
+    public async Task UnbindContextAsyncHandlesConcurrentRemoval()
+    {
+        var projectDirectory = CreateProjectDirectory(BasicMemoryProjectValidationStatus.ExactMatch);
+        var projectRegistry = new StubProjectRegistry { Binding = new ContextBinding(GitContext, ProjectAId, Status.Active) };
+        projectRegistry.TryRemoveBindingHandler = (contextId, cancellationToken) =>
+        {
+            projectRegistry.Binding = null;
+            return Task.FromResult(false);
+        };
+
+        var manager = new ProjectRegistryManager(projectDirectory, projectRegistry);
+        var result = await manager.UnbindContextAsync(GitContext);
+        Assert.AreEqual(ContextBindingRemovalStatus.AlreadyUnbound, result.Status);
+        Assert.AreEqual(1, projectRegistry.TryRemoveBindingCallCount);
+        Assert.AreEqual(1, projectRegistry.FindBindingCallCount);
+    }
+
+    /// <summary>
+    /// Verifies that a failed unbind fails closed when an exact binding still exists after the persistence operation.
+    /// </summary>
+    [TestMethod]
+    public async Task UnbindContextAsyncFailsClosedForUnresolvedWriteConflict()
+    {
+        var projectDirectory = CreateProjectDirectory(BasicMemoryProjectValidationStatus.ExactMatch);
+        var projectRegistry = new StubProjectRegistry
+        {
+            Binding = new ContextBinding(GitContext, ProjectAId, Status.Active),
+            TryRemoveBindingHandler = (contextId, cancellationToken) => Task.FromResult(false)
+        };
+
+        var manager = new ProjectRegistryManager(projectDirectory, projectRegistry);
+        var result = await manager.UnbindContextAsync(GitContext);
+        Assert.AreEqual(ContextBindingRemovalStatus.RegistryWriteConflict, result.Status);
+        Assert.AreEqual(1, projectRegistry.TryRemoveBindingCallCount);
+        Assert.AreEqual(1, projectRegistry.FindBindingCallCount);
+    }
+
     #endregion
 
     #region Private Methods
@@ -829,9 +908,13 @@ public sealed class ProjectRegistryManagerTests
 
         public Func<ContextId, Guid, Status, CancellationToken, Task<ContextBinding>>? CreateBindingHandler { get; set; }
 
+        public Func<ContextId, CancellationToken, Task<bool>>? TryRemoveBindingHandler { get; set; }
+
         public int FindBindingCallCount { get; private set; }
 
         public int CreateBindingCallCount { get; private set; }
+
+        public int TryRemoveBindingCallCount { get; private set; }
 
         public ContextId? CreatedContextId { get; private set; }
 
@@ -845,7 +928,7 @@ public sealed class ProjectRegistryManagerTests
 
         public int CreateCallCount { get; private set; }
 
-        public int TotalCallCount => FindByIdCallCount + FindByNameCallCount + CreateCallCount + FindBindingCallCount + CreateBindingCallCount + TryUpdateProjectStatusCallCount + TryUpdateBindingStatusCallCount;
+        public int TotalCallCount => FindByIdCallCount + FindByNameCallCount + CreateCallCount + FindBindingCallCount + CreateBindingCallCount + TryRemoveBindingCallCount + TryUpdateProjectStatusCallCount + TryUpdateBindingStatusCallCount;
 
         public Guid? CreatedMemoryProjectId { get; private set; }
 
@@ -868,6 +951,8 @@ public sealed class ProjectRegistryManagerTests
         public Status? NewProjectStatus { get; private set; }
 
         public ContextId? UpdatedBindingContextId { get; private set; }
+
+        public ContextId? RemovedBindingContextId { get; private set; }
 
         public Status? ExpectedBindingStatus { get; private set; }
 
@@ -952,6 +1037,17 @@ public sealed class ProjectRegistryManagerTests
 
             return TryUpdateBindingStatusHandler != null ?
                        TryUpdateBindingStatusHandler(contextId, expectedStatus, newStatus, cancellationToken) :
+                       Task.FromResult(true);
+        }
+
+        public Task<bool> TryRemoveBindingAsync(ContextId contextId, CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            TryRemoveBindingCallCount++;
+            RemovedBindingContextId = contextId;
+
+            return TryRemoveBindingHandler != null ?
+                       TryRemoveBindingHandler(contextId, cancellationToken) :
                        Task.FromResult(true);
         }
 

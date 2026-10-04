@@ -217,6 +217,11 @@ public sealed class RoutingToolsTests
             throw new NotSupportedException();
         }
 
+        public Task<bool> TryRemoveBindingAsync(ContextId contextId, CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException();
+        }
+
         #endregion
     }
 

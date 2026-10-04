@@ -159,6 +159,26 @@ public sealed class ProjectRegistryManager
         return ChangeBindingStatusAsync(contextId, Status.Active, requireActiveProject: true, cancellationToken);
     }
 
+    /// <summary>
+    /// Removes an exact technical context binding without changing its target project routing.
+    /// </summary>
+    /// <param name="contextId">The exact technical context identifier.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The result of the context-binding removal.</returns>
+    public async Task<ContextBindingRemovalResult> UnbindContextAsync(ContextId contextId, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(contextId);
+
+        var removed = await _projectRegistry.TryRemoveBindingAsync(contextId, cancellationToken).ConfigureAwait(false);
+        if (removed)
+            return new ContextBindingRemovalResult(ContextBindingRemovalStatus.Unbound);
+
+        var current = await _projectRegistry.FindBindingAsync(contextId, cancellationToken).ConfigureAwait(false);
+        return current == null ?
+                   new ContextBindingRemovalResult(ContextBindingRemovalStatus.AlreadyUnbound) :
+                   new ContextBindingRemovalResult(ContextBindingRemovalStatus.RegistryWriteConflict);
+    }
+
     #endregion
 
     #region Private Methods

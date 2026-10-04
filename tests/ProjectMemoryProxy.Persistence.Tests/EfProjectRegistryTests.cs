@@ -711,7 +711,7 @@ public sealed class EfProjectRegistryTests
         }
 
         var memoryProjectId = Guid.NewGuid();
-        
+
         const string memoryProjectName = "project-a";
         Assert.IsTrue(ContextId.TryParse("git:github.com/ChrSchu90/ProjectMemoryProxy", out var contextId));
 
@@ -740,6 +740,119 @@ public sealed class EfProjectRegistryTests
         Assert.AreEqual(ContextResolutionStatus.Resolved, projectReactivated.Status);
         Assert.AreEqual(memoryProjectId, projectReactivated.MemoryProjectId);
         Assert.AreEqual(memoryProjectName, projectReactivated.MemoryProjectName);
+    }
+
+    /// <summary>
+    /// Verifies that removing an active exact context binding deletes only the binding and preserves its project routing.
+    /// </summary>
+    [TestMethod]
+    public async Task TryRemoveBindingAsyncRemovesActiveBindingAndPreservesProjectRouting()
+    {
+        var memoryProjectId = Guid.NewGuid();
+        await CreateDatabaseAsync(_databasePath, new ProjectRoutingEntity
+        {
+            MemoryProjectId = memoryProjectId,
+            MemoryProjectName = "project-a",
+            Status = Status.Active,
+            Bindings =
+                {
+                    new ContextBindingEntity { BindingType = BindingType.GitRepository, BindingName = "github.com/ChrSchu90/ProjectMemoryProxy", Status = Status.Active },
+                    new ContextBindingEntity { BindingType = BindingType.ChatGptProject, BindingName = "chatty-mcp-and-aiharborvm", Status = Status.Active }
+                }
+        });
+
+        Assert.IsTrue(ContextId.TryParse("git:github.com/ChrSchu90/ProjectMemoryProxy", out var contextId));
+        Assert.IsTrue(ContextId.TryParse("chatgpt-project:chatty-mcp-and-aiharborvm", out var otherContextId));
+        var registry = CreateRegistry(_databasePath);
+        var removed = await registry.TryRemoveBindingAsync(contextId!, CancellationToken.None);
+        Assert.IsTrue(removed);
+        Assert.IsNull(await registry.FindBindingAsync(contextId!, CancellationToken.None));
+        Assert.IsNotNull(await registry.FindBindingAsync(otherContextId!, CancellationToken.None));
+
+        var routing = await registry.FindByMemoryProjectIdAsync(memoryProjectId, CancellationToken.None);
+        Assert.IsNotNull(routing);
+        Assert.AreEqual(Status.Active, routing.Status);
+    }
+
+    /// <summary>
+    /// Verifies that removing an inactive exact context binding physically deletes it instead of changing its status.
+    /// </summary>
+    [TestMethod]
+    public async Task TryRemoveBindingAsyncRemovesInactiveBinding()
+    {
+        await CreateDatabaseAsync(_databasePath, new ProjectRoutingEntity
+        {
+            MemoryProjectId = Guid.NewGuid(),
+            MemoryProjectName = "project-a",
+            Status = Status.Active,
+            Bindings =
+                {
+                    new ContextBindingEntity
+                    {
+                        BindingType = BindingType.GitRepository,
+                        BindingName = "github.com/ChrSchu90/ProjectMemoryProxy",
+                        Status = Status.Inactive
+                    }
+                }
+        });
+
+        Assert.IsTrue(ContextId.TryParse("git:github.com/ChrSchu90/ProjectMemoryProxy", out var contextId));
+        var registry = CreateRegistry(_databasePath);
+        var removed = await registry.TryRemoveBindingAsync(contextId!, CancellationToken.None);
+        Assert.IsTrue(removed);
+        Assert.IsNull(await registry.FindBindingAsync(contextId!, CancellationToken.None));
+    }
+
+    /// <summary>
+    /// Verifies that removing an unknown exact context binding returns false without creating or changing registry state.
+    /// </summary>
+    [TestMethod]
+    public async Task TryRemoveBindingAsyncReturnsFalseForUnknownContext()
+    {
+        var options = ContextOptions.Create(_databasePath, pooling: false);
+        await using (var dbContext = new ProjectMemoryProxyDbContext(options))
+        {
+            await dbContext.Database.MigrateAsync();
+        }
+
+        Assert.IsTrue(ContextId.TryParse("git:github.com/ChrSchu90/ProjectMemoryProxy", out var contextId));
+        var registry = CreateRegistry(_databasePath);
+        Assert.IsFalse(await registry.TryRemoveBindingAsync(contextId!, CancellationToken.None));
+    }
+
+    /// <summary>
+    /// Verifies that physical binding removal changes runtime resolution to <c>NotBound</c> and a later new binding resolves again.
+    /// </summary>
+    [TestMethod]
+    public async Task BindingRemovalAndRebindAffectRuntimeContextResolution()
+    {
+        var options = ContextOptions.Create(_databasePath, pooling: false);
+        await using (var dbContext = new ProjectMemoryProxyDbContext(options))
+        {
+            await dbContext.Database.MigrateAsync();
+        }
+
+        var memoryProjectId = Guid.NewGuid();
+        const string memoryProjectName = "project-a";
+        Assert.IsTrue(ContextId.TryParse("git:github.com/ChrSchu90/ProjectMemoryProxy", out var contextId));
+
+        var registry = CreateRegistry(_databasePath);
+        var routingManager = new RoutingManager(registry, NullLogger<RoutingManager>.Instance);
+        await registry.CreateAsync(memoryProjectId, memoryProjectName, Status.Active, CancellationToken.None);
+        await registry.CreateBindingAsync(contextId!, memoryProjectId, Status.Active, CancellationToken.None);
+
+        var resolved = await routingManager.ResolveContextAsync(contextId!, CancellationToken.None);
+        Assert.AreEqual(ContextResolutionStatus.Resolved, resolved.Status);
+
+        Assert.IsTrue(await registry.TryRemoveBindingAsync(contextId!, CancellationToken.None));
+        var notBound = await routingManager.ResolveContextAsync(contextId!, CancellationToken.None);
+        Assert.AreEqual(ContextResolutionStatus.NotBound, notBound.Status);
+
+        await registry.CreateBindingAsync(contextId!, memoryProjectId, Status.Active, CancellationToken.None);
+        var rebound = await routingManager.ResolveContextAsync(contextId!, CancellationToken.None);
+        Assert.AreEqual(ContextResolutionStatus.Resolved, rebound.Status);
+        Assert.AreEqual(memoryProjectId, rebound.MemoryProjectId);
+        Assert.AreEqual(memoryProjectName, rebound.MemoryProjectName);
     }
 
     #endregion

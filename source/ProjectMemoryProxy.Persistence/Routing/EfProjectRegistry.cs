@@ -263,6 +263,37 @@ internal sealed class EfProjectRegistry : IProjectRegistry
         }
     }
 
+    /// <inheritdoc />
+    public async Task<bool> TryRemoveBindingAsync(ContextId contextId, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(contextId);
+
+        await using var dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+        var bindingType = contextId.BindingType.ToString();
+
+        // ContextBindingEntity is an owned collection mapped to its own table.
+        // Delete by the exact globally unique context identity so the operation itself is the concurrency boundary.
+        var affectedRows = await dbContext.Database
+                               .ExecuteSqlInterpolatedAsync(
+                                   $"""
+                                    DELETE FROM "ContextBindings"
+                                    WHERE "BindingType" = {bindingType}
+                                      AND "BindingName" = {contextId.BindingName}
+                                    """,
+                                   cancellationToken)
+                               .ConfigureAwait(false);
+
+        switch (affectedRows)
+        {
+            case 0:
+                return false;
+            case 1:
+                return true;
+            default:
+                throw new InvalidOperationException($"Removing context binding '{contextId}' affected more than one row.");
+        }
+    }
+
     #endregion
 
     #region Private Methods
