@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "ProjectMemoryProxy.BasicMemory.Tests": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "PROJECTMEMORYPROXY_TEST_BASIC_MEMORY_ENDPOINT": "http://127.0.0.1:54799/mcp"
+      }
+    }
+  }
+}

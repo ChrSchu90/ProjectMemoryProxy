@@ -20,8 +20,6 @@ public sealed class BasicMemoryContractTests
 {
     #region Static Fields
 
-    private const string EndpointEnvironmentVariable = "PROJECTMEMORYPROXY_TEST_BASIC_MEMORY_ENDPOINT";
-
     private static readonly string[] AutomaticallyRoutedTools =
     [
         "build_context",
@@ -92,28 +90,12 @@ public sealed class BasicMemoryContractTests
     #region Tests
 
     /// <summary>
-    /// Verifies that a configured live Basic Memory 0.23.2 endpoint matches the canonical tool, routing, exposure, and diagnostics contract expected by the proxy.
+    /// Verifies that a configured live Basic Memory endpoint matches the canonical tool, routing, exposure, and diagnostics contract expected by the proxy.
     /// </summary>
     [TestMethod]
-    [TestCategory("Integration")]
-    [TestCategory("BasicMemoryContract")]
     public async Task LiveBasicMemoryEndpointMatchesExpectedContract()
     {
-        var endpointValue = Environment.GetEnvironmentVariable(EndpointEnvironmentVariable);
-        if (string.IsNullOrWhiteSpace(endpointValue))
-        {
-            Assert.Inconclusive($"Set {EndpointEnvironmentVariable} to run the live Basic Memory contract test.");
-            return;
-        }
-
-        if (!string.Equals(endpointValue, endpointValue.Trim(), StringComparison.Ordinal) ||
-            !Uri.TryCreate(endpointValue, UriKind.Absolute, out var endpoint) ||
-            (endpoint.Scheme != Uri.UriSchemeHttp && endpoint.Scheme != Uri.UriSchemeHttps))
-        {
-            Assert.Fail($"{EndpointEnvironmentVariable} must be an absolute HTTP or HTTPS URI without surrounding whitespace.");
-            return;
-        }
-
+        var endpoint = GetTestBasicMemoryEndpointOrSkipTest();
         using var cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(30));
         var cancellationToken = cancellationTokenSource.Token;
         var options = Options.Create(new ProjectMemoryProxyOptions
@@ -131,13 +113,7 @@ public sealed class BasicMemoryContractTests
         AssertToolNames(GetExpectedUpstreamToolNames(), upstreamCatalog.Tools.Select(tool => tool.ProtocolTool.Name));
 
         var classifier = new BasicMemoryToolClassifier();
-        var classifications = upstreamCatalog.Tools
-            .Select(tool => new
-            {
-                Name = tool.ProtocolTool.Name,
-                Classification = classifier.Classify(tool.ProtocolTool.Name, tool.ProtocolTool.InputSchema)
-            }).ToArray();
-
+        var classifications = upstreamCatalog.Tools.Select(tool => new { tool.ProtocolTool.Name, Classification = classifier.Classify(tool.ProtocolTool.Name, tool.ProtocolTool.InputSchema) }).ToArray();
         AssertClassification(AutomaticallyRoutedTools, classifications.Where(tool => tool.Classification == ToolRoutingClassification.AutomaticallyRouted).Select(tool => tool.Name));
         AssertClassification(GlobalAllowlistedTools, classifications.Where(tool => tool.Classification == ToolRoutingClassification.GlobalAllowlisted).Select(tool => tool.Name));
         AssertClassification(ExplicitAdapterTools, classifications.Where(tool => tool.Classification == ToolRoutingClassification.ExplicitAdapter).Select(tool => tool.Name));
@@ -170,6 +146,26 @@ public sealed class BasicMemoryContractTests
     #endregion
 
     #region Private Methods
+
+    private static Uri GetTestBasicMemoryEndpointOrSkipTest()
+    {
+        const string EndpointEnvironmentVariable = "PROJECTMEMORYPROXY_TEST_BASIC_MEMORY_ENDPOINT";
+        var endpointValue = Environment.GetEnvironmentVariable(EndpointEnvironmentVariable);
+        if (string.IsNullOrWhiteSpace(endpointValue))
+        {
+            Assert.Inconclusive("Endpoint not specified.");
+        }
+
+        if (!string.Equals(endpointValue, endpointValue.Trim(), StringComparison.Ordinal) ||
+            !Uri.TryCreate(endpointValue, UriKind.Absolute, out var endpoint) ||
+            (endpoint.Scheme != Uri.UriSchemeHttp && endpoint.Scheme != Uri.UriSchemeHttps))
+        {
+            Assert.Fail($"{EndpointEnvironmentVariable} must be an absolute HTTP or HTTPS URI without surrounding whitespace.");
+            return null!;
+        }
+
+        return endpoint;
+    }
 
     private static string[] GetExpectedUpstreamToolNames()
     {
