@@ -1,4 +1,4 @@
-namespace ProjectMemoryProxy.BasicMemory;
+namespace ProjectMemoryProxy.BasicMemory.Mirroring;
 
 using System;
 using System.Collections.Generic;
@@ -6,6 +6,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using ModelContextProtocol;
+using ProjectMemoryProxy.BasicMemory.Policy;
 using ProjectMemoryProxy.Core.Routing;
 
 /// <summary>

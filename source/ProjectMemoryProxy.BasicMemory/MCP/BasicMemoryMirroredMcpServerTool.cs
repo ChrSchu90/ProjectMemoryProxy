@@ -1,4 +1,4 @@
-namespace ProjectMemoryProxy.BasicMemory;
+namespace ProjectMemoryProxy.BasicMemory.MCP;
 
 using System;
 using System.Collections.Generic;
@@ -8,6 +8,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
+using ProjectMemoryProxy.BasicMemory.Mirroring;
+using ProjectMemoryProxy.BasicMemory.Policy;
 
 /// <summary>
 /// Exposes one mirrored Basic Memory tool through the ProjectMemoryProxy MCP server.

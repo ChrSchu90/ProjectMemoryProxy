@@ -1,6 +1,5 @@
-namespace ProjectMemoryProxy.BasicMemory;
+namespace ProjectMemoryProxy.BasicMemory.Mirroring;
 
-using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -8,6 +7,9 @@ using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using ProjectMemoryProxy.BasicMemory.Discovery;
+using ProjectMemoryProxy.BasicMemory.Policy;
 
 /// <summary>
 /// Provides the stable process-lifetime snapshot of Basic Memory tools that can be mirrored through the generic proxy path.

@@ -1,4 +1,4 @@
-namespace ProjectMemoryProxy.BasicMemory;
+namespace ProjectMemoryProxy.BasicMemory.Policy;
 
 /// <summary>
 /// Defines the result of analyzing an upstream MCP input schema for server-controlled project routing.

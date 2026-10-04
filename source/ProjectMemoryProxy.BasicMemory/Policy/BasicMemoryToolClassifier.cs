@@ -1,4 +1,4 @@
-namespace ProjectMemoryProxy.BasicMemory;
+namespace ProjectMemoryProxy.BasicMemory.Policy;
 
 using System;
 using System.Collections.Generic;

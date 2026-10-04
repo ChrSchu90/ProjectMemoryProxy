@@ -1,5 +1,11 @@
 namespace ProjectMemoryProxy.BasicMemory.Tests;
 
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Hosting.Server;
@@ -12,14 +18,11 @@ using ModelContextProtocol.AspNetCore;
 using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
+using ProjectMemoryProxy.BasicMemory.Client;
+using ProjectMemoryProxy.BasicMemory.Discovery;
+using ProjectMemoryProxy.BasicMemory.Mirroring;
 using ProjectMemoryProxy.Core.Configuration;
 using ProjectMemoryProxy.Core.Routing;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net;
-using System.Threading;
-using System.Threading.Tasks;
 
 /// <summary>
 /// Tests for <see cref="BasicMemoryServiceCollectionExtensions"/>

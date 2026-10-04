@@ -1,9 +1,10 @@
-namespace ProjectMemoryProxy.BasicMemory;
+namespace ProjectMemoryProxy.BasicMemory.Mirroring;
 
 using System;
 using System.Collections.Generic;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using ProjectMemoryProxy.BasicMemory.Policy;
 
 /// <summary>
 /// Rewrites an automatically routable Basic Memory input schema into the public proxy schema.

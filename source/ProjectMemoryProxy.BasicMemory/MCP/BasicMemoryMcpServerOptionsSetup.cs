@@ -1,8 +1,8 @@
-namespace ProjectMemoryProxy.BasicMemory;
+namespace ProjectMemoryProxy.BasicMemory.MCP;
 
+using System;
 using Microsoft.Extensions.Options;
 using ModelContextProtocol.Server;
-using System;
 
 /// <summary>
 /// Adds the process-lifetime mirrored Basic Memory tools to every MCP server options instance.

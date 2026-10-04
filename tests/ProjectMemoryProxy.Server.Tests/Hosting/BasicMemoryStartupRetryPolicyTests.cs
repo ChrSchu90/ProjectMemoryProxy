@@ -1,13 +1,13 @@
 namespace ProjectMemoryProxy.Server.Tests.Hosting;
 
-using Microsoft.Extensions.Logging;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-using ProjectMemoryProxy.Server.Hosting;
 using System;
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+using ProjectMemoryProxy.Server.Hosting;
 
 /// <summary>
 /// Tests for <see cref="BasicMemoryStartupRetryPolicy"/>

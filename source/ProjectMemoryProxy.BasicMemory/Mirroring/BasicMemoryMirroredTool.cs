@@ -1,8 +1,9 @@
-namespace ProjectMemoryProxy.BasicMemory;
+namespace ProjectMemoryProxy.BasicMemory.Mirroring;
 
 using System;
 using System.Text.Json;
 using ModelContextProtocol.Client;
+using ProjectMemoryProxy.BasicMemory.Policy;
 
 /// <summary>
 /// Represents a Basic Memory tool exposed through the ProjectMemoryProxy MCP surface.

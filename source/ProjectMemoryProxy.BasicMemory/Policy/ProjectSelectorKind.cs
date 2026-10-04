@@ -1,4 +1,4 @@
-namespace ProjectMemoryProxy.BasicMemory;
+namespace ProjectMemoryProxy.BasicMemory.Policy;
 
 /// <summary>
 /// Defines the Basic Memory project selector used for a generic upstream invocation.

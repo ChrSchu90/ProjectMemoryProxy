@@ -1,4 +1,4 @@
-namespace ProjectMemoryProxy.BasicMemory;
+namespace ProjectMemoryProxy.BasicMemory.Policy;
 
 /// <summary>
 /// Defines how a discovered Basic Memory tool may participate in proxy routing.

@@ -1,11 +1,11 @@
-namespace ProjectMemoryProxy.BasicMemory;
+namespace ProjectMemoryProxy.BasicMemory.MCP;
 
-using ModelContextProtocol.Server;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading;
+using ModelContextProtocol.Server;
 
 
 /// <summary>

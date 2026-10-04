@@ -1,4 +1,4 @@
-namespace ProjectMemoryProxy.BasicMemory.Tests;
+namespace ProjectMemoryProxy.BasicMemory.Tests.MCP;
 
 using System;
 using System.Collections.Generic;
@@ -18,6 +18,10 @@ using ModelContextProtocol.AspNetCore;
 using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
+using ProjectMemoryProxy.BasicMemory.Client;
+using ProjectMemoryProxy.BasicMemory.Discovery;
+using ProjectMemoryProxy.BasicMemory.MCP;
+using ProjectMemoryProxy.BasicMemory.Mirroring;
 using ProjectMemoryProxy.Core.Configuration;
 using ProjectMemoryProxy.Core.Routing;
 

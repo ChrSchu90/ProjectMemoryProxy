@@ -1,4 +1,4 @@
-namespace ProjectMemoryProxy.BasicMemory.Tests;
+namespace ProjectMemoryProxy.BasicMemory.Tests.Discovery;
 
 using System;
 using System.Collections.Generic;
@@ -17,6 +17,8 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using ModelContextProtocol.AspNetCore;
 using ModelContextProtocol.Client;
 using ModelContextProtocol.Server;
+using ProjectMemoryProxy.BasicMemory.Client;
+using ProjectMemoryProxy.BasicMemory.Discovery;
 using ProjectMemoryProxy.Core.Configuration;
 
 /// <summary>

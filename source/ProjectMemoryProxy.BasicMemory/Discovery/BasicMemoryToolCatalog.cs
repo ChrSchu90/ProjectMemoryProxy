@@ -1,4 +1,4 @@
-namespace ProjectMemoryProxy.BasicMemory;
+namespace ProjectMemoryProxy.BasicMemory.Discovery;
 
 using System;
 using System.Collections.Generic;
@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Client;
+using ProjectMemoryProxy.BasicMemory.Client;
 
 /// <summary>
 /// Provides the stable Basic Memory tool catalog discovered for the current process lifetime.

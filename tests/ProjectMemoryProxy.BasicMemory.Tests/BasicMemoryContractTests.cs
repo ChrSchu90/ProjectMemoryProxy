@@ -1,15 +1,5 @@
 namespace ProjectMemoryProxy.BasicMemory.Tests;
 
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting.Server;
-using Microsoft.AspNetCore.Hosting.Server.Features;
-using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.Extensions.Options;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-using ModelContextProtocol.Client;
-using ModelContextProtocol.Protocol;
-using ProjectMemoryProxy.Core.Configuration;
-using ProjectMemoryProxy.Core.Routing;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -17,9 +7,22 @@ using System.Net;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Hosting.Server;
+using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 using ModelContextProtocol.AspNetCore;
+using ModelContextProtocol.Client;
+using ModelContextProtocol.Protocol;
+using ProjectMemoryProxy.BasicMemory.Client;
+using ProjectMemoryProxy.BasicMemory.Discovery;
+using ProjectMemoryProxy.BasicMemory.Policy;
+using ProjectMemoryProxy.Core.Configuration;
+using ProjectMemoryProxy.Core.Routing;
 
 /// <summary>
 /// Live contract tests for the supported Basic Memory upstream version.

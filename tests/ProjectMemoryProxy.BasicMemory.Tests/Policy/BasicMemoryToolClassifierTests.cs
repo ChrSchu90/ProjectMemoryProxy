@@ -1,7 +1,8 @@
-namespace ProjectMemoryProxy.BasicMemory.Tests;
+namespace ProjectMemoryProxy.BasicMemory.Tests.Policy;
 
 using System.Text.Json;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using ProjectMemoryProxy.BasicMemory.Policy;
 
 /// <summary>
 /// Tests for <see cref="BasicMemoryToolClassifier"/>

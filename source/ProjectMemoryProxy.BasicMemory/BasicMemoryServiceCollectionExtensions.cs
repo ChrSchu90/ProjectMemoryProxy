@@ -1,13 +1,17 @@
 namespace ProjectMemoryProxy.BasicMemory;
 
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
-using ModelContextProtocol.Server;
-using ProjectMemoryProxy.Core.Routing;
 using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
+using ModelContextProtocol.Server;
+using ProjectMemoryProxy.BasicMemory.Client;
+using ProjectMemoryProxy.BasicMemory.Discovery;
+using ProjectMemoryProxy.BasicMemory.MCP;
+using ProjectMemoryProxy.BasicMemory.Mirroring;
+using ProjectMemoryProxy.Core.Routing;
 
 /// <summary>
 /// Provides Basic Memory service registrations.

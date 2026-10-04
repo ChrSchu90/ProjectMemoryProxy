@@ -1,11 +1,11 @@
 namespace ProjectMemoryProxy.Server.Hosting;
 
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
-using ProjectMemoryProxy.BasicMemory;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using ProjectMemoryProxy.BasicMemory;
 
 /// <summary>
 /// Blocks application startup until Basic Memory is reachable and its proxy toolset is registered.

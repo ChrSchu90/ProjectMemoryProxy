@@ -1,4 +1,4 @@
-namespace ProjectMemoryProxy.BasicMemory.Tests;
+namespace ProjectMemoryProxy.BasicMemory.Tests.Mirroring;
 
 using System;
 using System.Collections.Generic;
@@ -8,6 +8,8 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using ModelContextProtocol;
+using ProjectMemoryProxy.BasicMemory.Mirroring;
+using ProjectMemoryProxy.BasicMemory.Policy;
 using ProjectMemoryProxy.Core.Routing;
 
 /// <summary>
