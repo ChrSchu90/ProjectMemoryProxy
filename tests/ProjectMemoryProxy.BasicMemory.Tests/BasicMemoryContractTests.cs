@@ -58,8 +58,7 @@ public sealed class BasicMemoryContractTests
 
     private static readonly string[] ExplicitAdapterTools =
     [
-        "fetch",
-        "search"
+        //"some_placeholder_tool"
     ];
 
     private static readonly string[] ProjectLifecycleTools =
@@ -71,7 +70,9 @@ public sealed class BasicMemoryContractTests
 
     private static readonly string[] IntentionallyBlockedTools =
     [
-        "list_workspaces"
+        "list_workspaces",
+        "fetch",
+        "search"
     ];
 
     private static readonly HashSet<string> ForbiddenPublicRoutingProperties = new(StringComparer.Ordinal)

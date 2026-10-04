@@ -13,8 +13,7 @@ internal sealed class BasicMemoryToolClassifier
 
     private static readonly HashSet<string> ExplicitAdapterTools = new(StringComparer.Ordinal)
     {
-        "fetch",
-        "search"
+        "some_placeholder_tool"
     };
 
     private static readonly HashSet<string> ProjectLifecycleTools = new(StringComparer.Ordinal)
@@ -31,7 +30,9 @@ internal sealed class BasicMemoryToolClassifier
 
     private static readonly HashSet<string> IntentionallyBlockedTools = new(StringComparer.Ordinal)
     {
-        "list_workspaces"
+        "list_workspaces",  // Cloud workspace/tenant routing is outside the local-only ProjectMemoryProxy MVP.
+        "fetch",            // OpenAI compatibility tool; its standard fetch(id) contract cannot carry the explicit context_id required for fail-closed project routing.
+        "search"            // OpenAI compatibility tool; its standard search(query) contract cannot carry the explicit context_id required for fail-closed project routing.
     };
 
     #endregion

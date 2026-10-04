@@ -125,8 +125,7 @@ public sealed class BasicMemoryToolClassifierTests
     /// Verifies that compatibility tools requiring dedicated proxy behavior are classified as explicit adapters.
     /// </summary>
     [TestMethod]
-    [DataRow("search")]
-    [DataRow("fetch")]
+    [DataRow("some_placeholder_tool")]
     public void ClassifyMarksCompatibilityToolsAsExplicitAdapters(string toolName)
     {
         var classifier = new BasicMemoryToolClassifier();
@@ -154,11 +153,14 @@ public sealed class BasicMemoryToolClassifierTests
     /// Verifies that cloud workspace discovery is intentionally blocked because workspace routing is outside the supported local proxy scope.
     /// </summary>
     [TestMethod]
-    public void ClassifyMarksWorkspaceDiscoveryAsIntentionallyBlocked()
+    [DataRow("search")]
+    [DataRow("fetch")]
+    [DataRow("list_workspaces")]
+    public void ClassifyMarksWorkspaceDiscoveryAsIntentionallyBlocked(string toolName)
     {
         var classifier = new BasicMemoryToolClassifier();
 
-        var result = classifier.Classify("list_workspaces", ParseSchema("""{"type":"object"}"""));
+        var result = classifier.Classify(toolName, ParseSchema("""{"type":"object"}"""));
         Assert.AreEqual(ToolRoutingClassification.IntentionallyBlocked, result);
     }
 
