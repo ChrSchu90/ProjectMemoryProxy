@@ -55,6 +55,17 @@ public interface IProjectRegistry
     Task<ProjectRouting> CreateAsync(Guid memoryProjectId, string memoryProjectName, Status status, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Attempts to remove the registered project routing and its dependent context bindings.
+    /// </summary>
+    /// <param name="memoryProjectId">The Basic Memory external project identifier.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>
+    /// <see langword="true"/> when exactly one project routing was removed;
+    /// otherwise <see langword="false"/>.
+    /// </returns>
+    Task<bool> TryRemoveProjectAsync(Guid memoryProjectId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Finds the registered binding for an exact technical context identifier.
     /// </summary>
     /// <param name="contextId">The exact context identifier.</param>

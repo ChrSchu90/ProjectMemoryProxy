@@ -743,6 +743,72 @@ public sealed class EfProjectRegistryTests
     }
 
     /// <summary>
+    /// Verifies that removing a project routing physically deletes the routing and all dependent context bindings.
+    /// </summary>
+    [TestMethod]
+    public async Task TryRemoveProjectAsyncRemovesRoutingAndDependentBindings()
+    {
+        var memoryProjectId = Guid.NewGuid();
+        await CreateDatabaseAsync(_databasePath, new ProjectRoutingEntity
+        {
+            MemoryProjectId = memoryProjectId,
+            MemoryProjectName = "project-a",
+            Status = Status.Active,
+            Bindings =
+                {
+                    new ContextBindingEntity
+                        {
+                            BindingType = BindingType.GitRepository,
+                            BindingName = "github.com/ChrSchu90/ProjectMemoryProxy",
+                            Status = Status.Active
+                        },
+                    new ContextBindingEntity
+                        {
+                            BindingType = BindingType.ChatGptProject,
+                            BindingName = "chatty-mcp-and-aiharborvm",
+                            Status = Status.Inactive
+                        }
+                }
+        });
+
+        Assert.IsTrue(ContextId.TryParse("git:github.com/ChrSchu90/ProjectMemoryProxy", out var gitContext));
+        Assert.IsTrue(ContextId.TryParse("chatgpt-project:chatty-mcp-and-aiharborvm", out var chatGptContext));
+
+        var registry = CreateRegistry(_databasePath);
+        var removed = await registry.TryRemoveProjectAsync(memoryProjectId, CancellationToken.None);
+        Assert.IsTrue(removed);
+        Assert.IsNull(await registry.FindByMemoryProjectIdAsync(memoryProjectId, CancellationToken.None));
+        Assert.IsNull(await registry.FindBindingAsync(gitContext!, CancellationToken.None));
+        Assert.IsNull(await registry.FindBindingAsync(chatGptContext!, CancellationToken.None));
+    }
+
+    /// <summary>
+    /// Verifies that removing an unknown project routing returns false without changing registry state.
+    /// </summary>
+    [TestMethod]
+    public async Task TryRemoveProjectAsyncReturnsFalseForUnknownProject()
+    {
+        var options = ContextOptions.Create(_databasePath, pooling: false);
+        await using (var dbContext = new ProjectMemoryProxyDbContext(options))
+        {
+            await dbContext.Database.MigrateAsync();
+        }
+
+        var registry = CreateRegistry(_databasePath);
+        Assert.IsFalse(await registry.TryRemoveProjectAsync(Guid.NewGuid(), CancellationToken.None));
+    }
+
+    /// <summary>
+    /// Verifies that removing a project routing rejects an empty Basic Memory project identifier before accessing persistence.
+    /// </summary>
+    [TestMethod]
+    public async Task TryRemoveProjectAsyncRejectsEmptyProjectId()
+    {
+        var registry = CreateRegistry(_databasePath);
+        await Assert.ThrowsAsync<ArgumentException>(() => registry.TryRemoveProjectAsync(Guid.Empty, CancellationToken.None));
+    }
+
+    /// <summary>
     /// Verifies that removing an active exact context binding deletes only the binding and preserves its project routing.
     /// </summary>
     [TestMethod]

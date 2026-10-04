@@ -17,6 +17,7 @@ internal sealed class BasicMemoryProjectLifecycle : IBasicMemoryProjectLifecycle
     #region Static Fields
 
     private const string CreateMemoryProjectToolName = "create_memory_project";
+    private const string DeleteProjectToolName = "delete_project";
 
     #endregion
 
@@ -81,6 +82,28 @@ internal sealed class BasicMemoryProjectLifecycle : IBasicMemoryProjectLifecycle
 
         var status = created ? BasicMemoryProjectCreationStatus.Created : BasicMemoryProjectCreationStatus.AlreadyExists;
         return new BasicMemoryProjectCreationResult(status, new BasicMemoryProjectInfo(memoryProjectId, returnedName), returnedPath);
+    }
+
+    /// <inheritdoc />
+    public async Task DeleteAsync(string memoryProjectName, bool deleteNotes, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(memoryProjectName);
+
+        await _toolCatalog.InitializeAsync(cancellationToken).ConfigureAwait(false);
+        if (!_toolCatalog.TryGetTool(DeleteProjectToolName, out var tool))
+            throw new InvalidOperationException($"Basic Memory does not expose the required '{DeleteProjectToolName}' project lifecycle tool.");
+
+        var result = await tool.CallAsync(new Dictionary<string, object?>
+        {
+            ["project_name"] = memoryProjectName,
+            ["delete_notes"] = deleteNotes
+        }, cancellationToken: cancellationToken).ConfigureAwait(false);
+
+        if (result.IsError is true)
+        {
+            var errorText = string.Join(Environment.NewLine, result.Content.OfType<TextContentBlock>().Select(block => block.Text));
+            throw new InvalidOperationException(string.IsNullOrWhiteSpace(errorText) ? $"Basic Memory '{DeleteProjectToolName}' returned an MCP tool error." : $"Basic Memory '{DeleteProjectToolName}' returned an MCP tool error: {errorText}");
+        }
     }
 
     #endregion

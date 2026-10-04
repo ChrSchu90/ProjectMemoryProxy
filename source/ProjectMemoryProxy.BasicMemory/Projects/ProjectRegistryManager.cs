@@ -3,6 +3,7 @@ namespace ProjectMemoryProxy.BasicMemory.Projects;
 using ProjectMemoryProxy.Core.Routing;
 using System;
 using System.IO;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -84,6 +85,61 @@ public sealed class ProjectRegistryManager
 
         var registration = await RegisterValidatedProjectAsync(creation.Project.MemoryProjectId, creation.Project.MemoryProjectName, cancellationToken).ConfigureAwait(false);
         return MapCreationRegistrationResult(creation.Status, registration);
+    }
+
+    /// <summary>
+    /// Deletes a registered Basic Memory project before removing its ProjectMemoryProxy routing and dependent context bindings.
+    /// </summary>
+    /// <param name="memoryProjectId">The Basic Memory external project identifier.</param>
+    /// <param name="deleteNotes">Whether Basic Memory should also delete the project's note files.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The project deletion result.</returns>
+    public async Task<ProjectDeletionResult> DeleteProjectAsync(Guid memoryProjectId, bool deleteNotes, CancellationToken cancellationToken = default)
+    {
+        if (memoryProjectId == Guid.Empty)
+            throw new ArgumentException("The Basic Memory project identifier must not be empty.", nameof(memoryProjectId));
+
+        var routing = await _projectRegistry.FindByMemoryProjectIdAsync(memoryProjectId, cancellationToken).ConfigureAwait(false);
+        if (routing == null)
+            return new ProjectDeletionResult(ProjectDeletionStatus.AlreadyDeleted);
+
+        var validation = await _projectDirectory.ValidateAsync(memoryProjectId, routing.MemoryProjectName, cancellationToken).ConfigureAwait(false);
+        if (validation.Status == BasicMemoryProjectValidationStatus.NotFound)
+        {
+            return await RemoveDeletedProjectRoutingAsync(memoryProjectId, ProjectDeletionStatus.Recovered, cancellationToken).ConfigureAwait(false);
+        }
+
+        if (validation.Status != BasicMemoryProjectValidationStatus.ExactMatch)
+            return new ProjectDeletionResult(MapDeletionValidationStatus(validation.Status));
+
+        Exception? deleteException = null;
+
+        try
+        {
+            await _projectLifecycle.DeleteAsync(routing.MemoryProjectName, deleteNotes, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            // The remote delete may have committed before the MCP call failed.
+            // Re-read Basic Memory before deciding whether the operation failed.
+            deleteException = exception;
+        }
+
+        var postDeleteValidation = await _projectDirectory.ValidateAsync(memoryProjectId, routing.MemoryProjectName, cancellationToken).ConfigureAwait(false);
+        if (postDeleteValidation.Status == BasicMemoryProjectValidationStatus.NotFound)
+            return await RemoveDeletedProjectRoutingAsync(memoryProjectId, ProjectDeletionStatus.Deleted, cancellationToken).ConfigureAwait(false);
+
+        if (postDeleteValidation.Status != BasicMemoryProjectValidationStatus.ExactMatch)
+            return new ProjectDeletionResult(MapDeletionValidationStatus(postDeleteValidation.Status));
+
+        if (deleteException != null)
+            ExceptionDispatchInfo.Capture(deleteException).Throw();
+
+        return new ProjectDeletionResult(ProjectDeletionStatus.BasicMemoryDeleteNotCompleted);
     }
 
     /// <summary>
@@ -394,6 +450,27 @@ public sealed class ProjectRegistryManager
 
         var normalizedActualPath = NormalizeProjectPath(actualProjectPath);
         return string.Equals(expectedProjectPath, normalizedActualPath, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
+    }
+
+    private async Task<ProjectDeletionResult> RemoveDeletedProjectRoutingAsync(Guid memoryProjectId, ProjectDeletionStatus successStatus, CancellationToken cancellationToken)
+    {
+        var removed = await _projectRegistry.TryRemoveProjectAsync(memoryProjectId, cancellationToken).ConfigureAwait(false);
+        if (removed)
+            return new ProjectDeletionResult(successStatus);
+
+        var current = await _projectRegistry.FindByMemoryProjectIdAsync(memoryProjectId, cancellationToken).ConfigureAwait(false);
+        return current == null ? new ProjectDeletionResult(successStatus) : new ProjectDeletionResult(ProjectDeletionStatus.RegistryWriteConflict);
+    }
+
+    private static ProjectDeletionStatus MapDeletionValidationStatus(BasicMemoryProjectValidationStatus status)
+    {
+        return status switch
+            {
+                BasicMemoryProjectValidationStatus.NameMismatch => ProjectDeletionStatus.BasicMemoryProjectNameMismatch,
+                BasicMemoryProjectValidationStatus.IdMismatch => ProjectDeletionStatus.BasicMemoryProjectIdMismatch,
+                BasicMemoryProjectValidationStatus.IdentityConflict => ProjectDeletionStatus.BasicMemoryProjectIdentityConflict,
+                _ => ProjectDeletionStatus.BasicMemoryValidationFailed
+            };
     }
 
     #endregion

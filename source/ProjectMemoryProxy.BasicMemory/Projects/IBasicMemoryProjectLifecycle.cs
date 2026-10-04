@@ -26,5 +26,13 @@ public interface IBasicMemoryProjectLifecycle
     /// <param name="cancellationToken">The cancellation token.</param>
     Task<BasicMemoryProjectCreationResult> CreateAsync(string memoryProjectName, string memoryProjectPath, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Deletes a local Basic Memory project.
+    /// </summary>
+    /// <param name="memoryProjectName">The Basic Memory project name.</param>
+    /// <param name="deleteNotes">Whether Basic Memory should also delete the project's note files.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    Task DeleteAsync(string memoryProjectName, bool deleteNotes, CancellationToken cancellationToken = default);
+
     #endregion
 }

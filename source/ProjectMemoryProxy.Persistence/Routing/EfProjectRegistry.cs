@@ -126,6 +126,25 @@ internal sealed class EfProjectRegistry : IProjectRegistry
     }
 
     /// <inheritdoc />
+    public async Task<bool> TryRemoveProjectAsync(Guid memoryProjectId, CancellationToken cancellationToken = default)
+    {
+        if (memoryProjectId == Guid.Empty)
+            throw new ArgumentException("The Basic Memory project identifier must not be empty.", nameof(memoryProjectId));
+
+        await using var dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+        var affectedRows = await dbContext.RoutingProjects.Where(project => project.MemoryProjectId == memoryProjectId).ExecuteDeleteAsync(cancellationToken).ConfigureAwait(false);
+        switch (affectedRows)
+        {
+            case 0:
+                return false;
+            case 1:
+                return true;
+            default:
+                throw new InvalidOperationException($"Removing project routing '{memoryProjectId:D}' affected more than one row.");
+        }
+    }
+
+    /// <inheritdoc />
     public async Task<ContextBinding?> FindBindingAsync(ContextId contextId, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(contextId);

@@ -1072,6 +1072,209 @@ public sealed class ProjectRegistryManagerTests
         Assert.AreEqual(0, projectRegistry.TotalCallCount);
     }
 
+    /// <summary>
+    /// Verifies that an active registered project can be deleted directly after exact Basic Memory validation and post-delete absence verification.
+    /// </summary>
+    [TestMethod]
+    public async Task DeleteProjectAsyncDeletesActiveRouting()
+    {
+        var projectDirectory = CreateProjectDirectory(BasicMemoryProjectValidationStatus.ExactMatch);
+
+        projectDirectory.ValidateHandler = (memoryProjectId, memoryProjectName, callCount, cancellationToken) =>
+            Task.FromResult(CreateValidationResult(callCount == 1 ? BasicMemoryProjectValidationStatus.ExactMatch : BasicMemoryProjectValidationStatus.NotFound));
+
+        var projectRegistry = new StubProjectRegistry
+        {
+            ProjectById = new ProjectRouting(ProjectAId, "project-a", Status.Active)
+        };
+
+        var projectLifecycle = new StubBasicMemoryProjectLifecycle();
+        projectLifecycle.DeleteHandler = (memoryProjectName, deleteNotes, cancellationToken) =>
+        {
+            Assert.AreEqual(1, projectDirectory.ValidateCallCount);
+            Assert.AreEqual(0, projectRegistry.TryRemoveProjectCallCount);
+            return Task.CompletedTask;
+        };
+
+        projectRegistry.TryRemoveProjectHandler = (memoryProjectId, cancellationToken) =>
+        {
+            Assert.AreEqual(1, projectLifecycle.DeleteCallCount);
+            Assert.AreEqual(2, projectDirectory.ValidateCallCount);
+            return Task.FromResult(true);
+        };
+
+        var manager = CreateManager(projectDirectory, projectRegistry, projectLifecycle);
+        var result = await manager.DeleteProjectAsync(ProjectAId, deleteNotes: false);
+        Assert.AreEqual(ProjectDeletionStatus.Deleted, result.Status);
+        Assert.AreEqual(2, projectDirectory.ValidateCallCount);
+        Assert.AreEqual(1, projectLifecycle.DeleteCallCount);
+        Assert.AreEqual("project-a", projectLifecycle.DeletedMemoryProjectName);
+        Assert.IsFalse(projectLifecycle.DeletedMemoryProjectDeleteNotes);
+        Assert.AreEqual(1, projectRegistry.TryRemoveProjectCallCount);
+        Assert.AreEqual(ProjectAId, projectRegistry.RemovedProjectMemoryProjectId);
+    }
+
+    /// <summary>
+    /// Verifies that an inactive registered project can be deleted directly without requiring reactivation.
+    /// </summary>
+    [TestMethod]
+    public async Task DeleteProjectAsyncDeletesInactiveRouting()
+    {
+        var projectDirectory = CreateProjectDirectory(BasicMemoryProjectValidationStatus.ExactMatch);
+        projectDirectory.ValidateHandler = (memoryProjectId, memoryProjectName, callCount, cancellationToken) =>
+            Task.FromResult(CreateValidationResult(callCount == 1 ? BasicMemoryProjectValidationStatus.ExactMatch : BasicMemoryProjectValidationStatus.NotFound));
+
+        var projectRegistry = new StubProjectRegistry
+        {
+            ProjectById = new ProjectRouting(ProjectAId, "project-a", Status.Inactive)
+        };
+
+        var projectLifecycle = new StubBasicMemoryProjectLifecycle
+        {
+            DeleteHandler = (memoryProjectName, deleteNotes, cancellationToken) => Task.CompletedTask
+        };
+
+        var manager = CreateManager(projectDirectory, projectRegistry, projectLifecycle);
+        var result = await manager.DeleteProjectAsync(ProjectAId, deleteNotes: true);
+        Assert.AreEqual(ProjectDeletionStatus.Deleted, result.Status);
+        Assert.AreEqual(1, projectLifecycle.DeleteCallCount);
+        Assert.IsTrue(projectLifecycle.DeletedMemoryProjectDeleteNotes);
+        Assert.AreEqual(1, projectRegistry.TryRemoveProjectCallCount);
+    }
+
+    /// <summary>
+    /// Verifies that a project-name mismatch observed after the remote delete fails closed without removing the local routing.
+    /// </summary>
+    [TestMethod]
+    public async Task DeleteProjectAsyncFailsClosedForPostDeleteNameMismatch()
+    {
+        await AssertPostDeleteValidationFailureAsync(BasicMemoryProjectValidationStatus.NameMismatch, ProjectDeletionStatus.BasicMemoryProjectNameMismatch);
+    }
+
+    /// <summary>
+    /// Verifies that a project-identifier mismatch observed after the remote delete fails closed without removing the local routing.
+    /// </summary>
+    [TestMethod]
+    public async Task DeleteProjectAsyncFailsClosedForPostDeleteIdMismatch()
+    {
+        await AssertPostDeleteValidationFailureAsync(BasicMemoryProjectValidationStatus.IdMismatch, ProjectDeletionStatus.BasicMemoryProjectIdMismatch);
+    }
+
+    /// <summary>
+    /// Verifies that conflicting project identities observed after the remote delete fail closed without removing the local routing.
+    /// </summary>
+    [TestMethod]
+    public async Task DeleteProjectAsyncFailsClosedForPostDeleteIdentityConflict()
+    {
+        await AssertPostDeleteValidationFailureAsync(BasicMemoryProjectValidationStatus.IdentityConflict, ProjectDeletionStatus.BasicMemoryProjectIdentityConflict);
+    }
+
+    /// <summary>
+    /// Verifies that an unsupported post-delete validation outcome fails closed without removing the local routing.
+    /// </summary>
+    [TestMethod]
+    public async Task DeleteProjectAsyncFailsClosedForUnknownPostDeleteValidationStatus()
+    {
+        await AssertPostDeleteValidationFailureAsync((BasicMemoryProjectValidationStatus)int.MaxValue, ProjectDeletionStatus.BasicMemoryValidationFailed);
+    }
+
+    /// <summary>
+    /// Verifies that a project whose remote delete succeeded can be recovered on retry when the first local routing removal failed.
+    /// </summary>
+    [TestMethod]
+    public async Task DeleteProjectAsyncRecoversAfterPreviousRegistryFailure()
+    {
+        var projectDirectory =
+            CreateProjectDirectory(
+                BasicMemoryProjectValidationStatus.ExactMatch);
+
+        projectDirectory.ValidateHandler = (
+            _,
+            _,
+            callCount,
+            _) =>
+            Task.FromResult(
+                CreateValidationResult(
+                    callCount == 1
+                        ? BasicMemoryProjectValidationStatus.ExactMatch
+                        : BasicMemoryProjectValidationStatus.NotFound));
+
+        var projectLifecycle = new StubBasicMemoryProjectLifecycle
+        {
+            DeleteHandler = (_, _, _) => Task.CompletedTask
+        };
+
+        var projectRegistry = new StubProjectRegistry
+        {
+            ProjectById =
+                new ProjectRouting(
+                    ProjectAId,
+                    "project-a",
+                    Status.Active)
+        };
+
+        projectRegistry.TryRemoveProjectHandler = (_, _) =>
+        {
+            if (projectRegistry.TryRemoveProjectCallCount == 1)
+            {
+                throw new InvalidOperationException(
+                    "Simulated registry persistence failure.");
+            }
+
+            return Task.FromResult(true);
+        };
+
+        var manager = CreateManager(
+            projectDirectory,
+            projectRegistry,
+            projectLifecycle);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => manager.DeleteProjectAsync(
+                ProjectAId,
+                deleteNotes: false));
+
+        var retryResult = await manager.DeleteProjectAsync(
+            ProjectAId,
+            deleteNotes: false);
+
+        Assert.AreEqual(
+            ProjectDeletionStatus.Recovered,
+            retryResult.Status);
+
+        Assert.AreEqual(
+            1,
+            projectLifecycle.DeleteCallCount,
+            "The already deleted Basic Memory project must not be deleted again.");
+
+        Assert.AreEqual(3, projectDirectory.ValidateCallCount);
+        Assert.AreEqual(2, projectRegistry.TryRemoveProjectCallCount);
+    }
+
+    /// <summary>
+    /// Verifies that cancellation during the remote project delete is propagated without post-delete validation or local routing removal.
+    /// </summary>
+    [TestMethod]
+    public async Task DeleteProjectAsyncPropagatesRemoteCancellation()
+    {
+        var projectDirectory = CreateProjectDirectory(BasicMemoryProjectValidationStatus.ExactMatch);
+        var projectLifecycle = new StubBasicMemoryProjectLifecycle
+        {
+            DeleteHandler = (_, _, _) => throw new OperationCanceledException()
+        };
+
+        var projectRegistry = new StubProjectRegistry
+        {
+            ProjectById = new ProjectRouting(ProjectAId, "project-a", Status.Active)
+        };
+
+        var manager = CreateManager(projectDirectory, projectRegistry, projectLifecycle);
+        await Assert.ThrowsAsync<OperationCanceledException>(() => manager.DeleteProjectAsync(ProjectAId, deleteNotes: false));
+        Assert.AreEqual(1, projectDirectory.ValidateCallCount);
+        Assert.AreEqual(1, projectLifecycle.DeleteCallCount);
+        Assert.AreEqual(0, projectRegistry.TryRemoveProjectCallCount);
+    }
+
     #endregion
 
     #region Private Methods
@@ -1079,6 +1282,11 @@ public sealed class ProjectRegistryManagerTests
     private static StubBasicMemoryProjectDirectory CreateProjectDirectory(BasicMemoryProjectValidationStatus status)
     {
         return new StubBasicMemoryProjectDirectory(new BasicMemoryProjectValidationResult(status, null, null));
+    }
+
+    private static BasicMemoryProjectValidationResult CreateValidationResult(BasicMemoryProjectValidationStatus status)
+    {
+        return new BasicMemoryProjectValidationResult(status, null, null);
     }
 
     private static async Task AssertBasicMemoryValidationFailureAsync(BasicMemoryProjectValidationStatus validationStatus, ProjectRegistrationStatus expectedRegistrationStatus)
@@ -1122,10 +1330,10 @@ public sealed class ProjectRegistryManagerTests
     private static StubBasicMemoryProjectLifecycle CreateProjectLifecycle(BasicMemoryProjectCreationStatus status, string projectPath, Guid? memoryProjectId = null, string memoryProjectName = "project-a")
     {
         return new StubBasicMemoryProjectLifecycle
-                   {
-                       CreateHandler = (requestedProjectName, requestedProjectPath, cancellationToken) =>
-                           Task.FromResult(new BasicMemoryProjectCreationResult(status, new BasicMemoryProjectInfo(memoryProjectId ?? ProjectAId, memoryProjectName), projectPath))
-                   };
+        {
+            CreateHandler = (requestedProjectName, requestedProjectPath, cancellationToken) =>
+                Task.FromResult(new BasicMemoryProjectCreationResult(status, new BasicMemoryProjectInfo(memoryProjectId ?? ProjectAId, memoryProjectName), projectPath))
+        };
     }
 
     private static async Task AssertCreateProjectValidationFailureAsync(BasicMemoryProjectValidationStatus validationStatus, ProjectCreationStatus expectedStatus)
@@ -1142,6 +1350,50 @@ public sealed class ProjectRegistryManagerTests
         Assert.AreEqual(1, projectLifecycle.CreateCallCount);
         Assert.AreEqual(1, projectDirectory.ValidateCallCount);
         Assert.AreEqual(0, projectRegistry.CreateCallCount);
+    }
+
+    private static async Task AssertPostDeleteValidationFailureAsync(BasicMemoryProjectValidationStatus postDeleteValidationStatus, ProjectDeletionStatus expectedStatus)
+    {
+        var projectDirectory = CreateProjectDirectory(BasicMemoryProjectValidationStatus.ExactMatch);
+
+        projectDirectory.ValidateHandler = (
+                _,
+                _,
+                callCount,
+                _) =>
+            Task.FromResult(
+                CreateValidationResult(
+                    callCount == 1
+                        ? BasicMemoryProjectValidationStatus.ExactMatch
+                        : postDeleteValidationStatus));
+
+        var projectLifecycle = new StubBasicMemoryProjectLifecycle
+        {
+            DeleteHandler = (_, _, _) => Task.CompletedTask
+        };
+
+        var projectRegistry = new StubProjectRegistry
+        {
+            ProjectById =
+                                          new ProjectRouting(
+                                              ProjectAId,
+                                              "project-a",
+                                              Status.Active)
+        };
+
+        var manager = CreateManager(
+            projectDirectory,
+            projectRegistry,
+            projectLifecycle);
+
+        var result = await manager.DeleteProjectAsync(
+                         ProjectAId,
+                         deleteNotes: false);
+
+        Assert.AreEqual(expectedStatus, result.Status);
+        Assert.AreEqual(2, projectDirectory.ValidateCallCount);
+        Assert.AreEqual(1, projectLifecycle.DeleteCallCount);
+        Assert.AreEqual(0, projectRegistry.TryRemoveProjectCallCount);
     }
 
     #endregion
@@ -1167,6 +1419,8 @@ public sealed class ProjectRegistryManagerTests
 
         #region Properties
 
+        public Func<Guid, string, int, CancellationToken, Task<BasicMemoryProjectValidationResult>>? ValidateHandler { get; set; }
+
         public int ValidateCallCount { get; private set; }
 
         public Guid? ValidatedMemoryProjectId { get; private set; }
@@ -1185,10 +1439,14 @@ public sealed class ProjectRegistryManagerTests
         public Task<BasicMemoryProjectValidationResult> ValidateAsync(Guid memoryProjectId, string memoryProjectName, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
+
             ValidateCallCount++;
             ValidatedMemoryProjectId = memoryProjectId;
             ValidatedMemoryProjectName = memoryProjectName;
-            return Task.FromResult(_validationResult);
+
+            return ValidateHandler != null ?
+                       ValidateHandler(memoryProjectId, memoryProjectName, ValidateCallCount, cancellationToken)
+                       : Task.FromResult(_validationResult);
         }
 
         #endregion
@@ -1228,7 +1486,16 @@ public sealed class ProjectRegistryManagerTests
 
         public int CreateCallCount { get; private set; }
 
-        public int TotalCallCount => FindByIdCallCount + FindByNameCallCount + CreateCallCount + FindBindingCallCount + CreateBindingCallCount + TryRemoveBindingCallCount + TryUpdateProjectStatusCallCount + TryUpdateBindingStatusCallCount;
+        public int TotalCallCount =>
+            FindByIdCallCount +
+            FindByNameCallCount +
+            CreateCallCount +
+            FindBindingCallCount +
+            CreateBindingCallCount +
+            TryRemoveProjectCallCount +
+            TryRemoveBindingCallCount +
+            TryUpdateProjectStatusCallCount +
+            TryUpdateBindingStatusCallCount;
 
         public Guid? CreatedMemoryProjectId { get; private set; }
 
@@ -1257,6 +1524,12 @@ public sealed class ProjectRegistryManagerTests
         public Status? ExpectedBindingStatus { get; private set; }
 
         public Status? NewBindingStatus { get; private set; }
+
+        public Func<Guid, CancellationToken, Task<bool>>? TryRemoveProjectHandler { get; set; }
+
+        public int TryRemoveProjectCallCount { get; private set; }
+
+        public Guid? RemovedProjectMemoryProjectId { get; private set; }
 
         #endregion
 
@@ -1351,6 +1624,27 @@ public sealed class ProjectRegistryManagerTests
                        Task.FromResult(true);
         }
 
+        public async Task<bool> TryRemoveProjectAsync(Guid memoryProjectId, CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            TryRemoveProjectCallCount++;
+            RemovedProjectMemoryProjectId = memoryProjectId;
+
+            var removed = TryRemoveProjectHandler == null ||
+                          await TryRemoveProjectHandler(memoryProjectId, cancellationToken).ConfigureAwait(false);
+            if (removed)
+            {
+                if (ProjectById?.MemoryProjectId == memoryProjectId)
+                    ProjectById = null;
+
+                if (ProjectByName?.MemoryProjectId == memoryProjectId)
+                    ProjectByName = null;
+            }
+
+            return removed;
+        }
+
         #endregion
     }
 
@@ -1360,11 +1654,19 @@ public sealed class ProjectRegistryManagerTests
 
         public Func<string, string, CancellationToken, Task<BasicMemoryProjectCreationResult>>? CreateHandler { get; set; }
 
+        public Func<string, bool, CancellationToken, Task>? DeleteHandler { get; set; }
+
         public int CreateCallCount { get; private set; }
+
+        public int DeleteCallCount { get; private set; }
 
         public string? CreatedMemoryProjectName { get; private set; }
 
         public string? CreatedMemoryProjectPath { get; private set; }
+
+        public string? DeletedMemoryProjectName { get; private set; }
+
+        public bool? DeletedMemoryProjectDeleteNotes { get; private set; }
 
         #endregion
 
@@ -1382,6 +1684,20 @@ public sealed class ProjectRegistryManagerTests
                 throw new NotSupportedException("The test did not configure a Basic Memory project-create operation.");
 
             return CreateHandler(memoryProjectName, memoryProjectPath, cancellationToken);
+        }
+
+        public Task DeleteAsync(string memoryProjectName, bool deleteNotes, CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            DeleteCallCount++;
+            DeletedMemoryProjectName = memoryProjectName;
+            DeletedMemoryProjectDeleteNotes = deleteNotes;
+
+            if (DeleteHandler == null)
+                throw new NotSupportedException("The test did not configure a Basic Memory project-delete operation.");
+
+            return DeleteHandler(memoryProjectName, deleteNotes, cancellationToken);
         }
 
         #endregion

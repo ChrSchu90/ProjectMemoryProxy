@@ -128,6 +128,30 @@ public sealed class BasicMemoryProjectLifecycleTests
         await using var fixture = await CreateFixtureWithoutCreateToolAsync();
         await Assert.ThrowsAsync<InvalidOperationException>(() => fixture.Lifecycle.CreateAsync("project-a", GetProjectPath("project-a")));
     }
+    
+    /// <summary>
+    /// Verifies that project deletion forwards the exact project name and delete-notes choice to Basic Memory.
+    /// </summary>
+    [TestMethod]
+    public async Task DeleteAsyncForwardsProjectNameAndDeleteNotes()
+    {
+        await using var fixture = await CreateFixtureAsync(new TestProjectCreatePayload("unused", ProjectAId.ToString("D"), GetProjectPath("unused"), true, false));
+        await fixture.Lifecycle.DeleteAsync("project-a", deleteNotes: true);
+        Assert.AreEqual(1, fixture.State.DeleteCallCount);
+        Assert.AreEqual("project-a", fixture.State.DeletedProjectName);
+        Assert.IsTrue(fixture.State.DeleteNotes);
+    }
+
+    /// <summary>
+    /// Verifies that project deletion rejects a missing project name before invoking the Basic Memory lifecycle tool.
+    /// </summary>
+    [TestMethod]
+    public async Task DeleteAsyncRejectsEmptyProjectName()
+    {
+        await using var fixture = await CreateFixtureAsync(new TestProjectCreatePayload("unused", ProjectAId.ToString("D"), GetProjectPath("unused"), true, false));
+        await Assert.ThrowsAsync<ArgumentException>(() => fixture.Lifecycle.DeleteAsync(" ", deleteNotes: false));
+        Assert.AreEqual(0, fixture.State.DeleteCallCount);
+    }
 
     #endregion
 
@@ -288,6 +312,12 @@ public sealed class BasicMemoryProjectLifecycleTests
 
         public string? OutputFormat { get; private set; }
 
+        public int DeleteCallCount { get; private set; }
+
+        public string? DeletedProjectName { get; private set; }
+
+        public bool? DeleteNotes { get; private set; }
+
         #endregion
 
         #region Public Methods
@@ -299,6 +329,13 @@ public sealed class BasicMemoryProjectLifecycleTests
             ProjectPath = projectPath;
             SetDefault = setDefault;
             OutputFormat = outputFormat;
+        }
+
+        public void RecordDelete(string projectName, bool deleteNotes)
+        {
+            DeleteCallCount++;
+            DeletedProjectName = projectName;
+            DeleteNotes = deleteNotes;
         }
 
         #endregion
@@ -332,6 +369,16 @@ public sealed class BasicMemoryProjectLifecycleTests
         {
             _state.Record(project_name, project_path, set_default, output_format);
             return new ProjectCreateEnvelope(_state.Response);
+        }
+
+        /// <summary>
+        /// Provides the Basic Memory project-delete response used by lifecycle tests.
+        /// </summary>
+        [McpServerTool(Name = "delete_project", ReadOnly = false)]
+        public string DeleteProject(string project_name, bool delete_notes = false)
+        {
+            _state.RecordDelete(project_name, delete_notes);
+            return "Project deleted.";
         }
 
         #endregion

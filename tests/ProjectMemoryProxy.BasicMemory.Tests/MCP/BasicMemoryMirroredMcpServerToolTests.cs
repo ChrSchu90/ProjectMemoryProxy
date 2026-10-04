@@ -255,6 +255,11 @@ public sealed class BasicMemoryMirroredMcpServerToolTests
             throw new NotSupportedException();
         }
 
+        public Task<bool> TryRemoveProjectAsync(Guid memoryProjectId, CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException();
+        }
+
         #endregion
     }
 
