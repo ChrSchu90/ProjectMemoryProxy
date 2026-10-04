@@ -17,6 +17,44 @@ namespace ProjectMemoryProxy.Persistence.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.12");
 
+            modelBuilder.Entity("ProjectMemoryProxy.Persistence.Entities.ContextBindingEntity", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("BindingName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("BindingType")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("CreatedAt")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("RoutingProjectId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("UpdatedAt")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RoutingProjectId");
+
+                    b.HasIndex("BindingType", "BindingName")
+                        .IsUnique();
+
+                    b.ToTable("ContextBindings");
+                });
+
             modelBuilder.Entity("ProjectMemoryProxy.Persistence.Entities.ProjectRoutingEntity", b =>
                 {
                     b.Property<long>("Id")
@@ -54,49 +92,19 @@ namespace ProjectMemoryProxy.Persistence.Migrations
                     b.ToTable("ProjectRoutings");
                 });
 
+            modelBuilder.Entity("ProjectMemoryProxy.Persistence.Entities.ContextBindingEntity", b =>
+                {
+                    b.HasOne("ProjectMemoryProxy.Persistence.Entities.ProjectRoutingEntity", "RoutingProject")
+                        .WithMany("Bindings")
+                        .HasForeignKey("RoutingProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("RoutingProject");
+                });
+
             modelBuilder.Entity("ProjectMemoryProxy.Persistence.Entities.ProjectRoutingEntity", b =>
                 {
-                    b.OwnsMany("ProjectMemoryProxy.Persistence.Entities.ContextBindingEntity", "Bindings", b1 =>
-                        {
-                            b1.Property<long>("Id")
-                                .ValueGeneratedOnAdd()
-                                .HasColumnType("INTEGER");
-
-                            b1.Property<string>("BindingName")
-                                .IsRequired()
-                                .HasMaxLength(255)
-                                .HasColumnType("TEXT");
-
-                            b1.Property<string>("BindingType")
-                                .IsRequired()
-                                .HasColumnType("TEXT");
-
-                            b1.Property<long>("CreatedAt")
-                                .HasColumnType("INTEGER");
-
-                            b1.Property<long>("RoutingProjectId")
-                                .HasColumnType("INTEGER");
-
-                            b1.Property<string>("Status")
-                                .IsRequired()
-                                .HasColumnType("TEXT");
-
-                            b1.Property<long>("UpdatedAt")
-                                .HasColumnType("INTEGER");
-
-                            b1.HasKey("Id");
-
-                            b1.HasIndex("RoutingProjectId");
-
-                            b1.HasIndex("BindingType", "BindingName")
-                                .IsUnique();
-
-                            b1.ToTable("ContextBindings");
-
-                            b1.WithOwner()
-                                .HasForeignKey("RoutingProjectId");
-                        });
-
                     b.Navigation("Bindings");
                 });
 #pragma warning restore 612, 618

@@ -43,6 +43,11 @@ public sealed class ProjectMemoryProxyDbContext : DbContext
     /// </summary>
     internal DbSet<ProjectRoutingEntity> RoutingProjects => Set<ProjectRoutingEntity>();
 
+    /// <summary>
+    /// Gets the persisted context bindings.
+    /// </summary>
+    internal DbSet<ContextBindingEntity> ContextBindings => Set<ContextBindingEntity>();
+
     #endregion
 
     #region Public Methods

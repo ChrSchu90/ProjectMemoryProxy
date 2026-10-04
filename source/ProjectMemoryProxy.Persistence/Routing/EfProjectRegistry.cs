@@ -53,14 +53,13 @@ internal sealed class EfProjectRegistry : IProjectRegistry
         ArgumentNullException.ThrowIfNull(contextId);
 
         await using var dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
-        var route = await dbContext.RoutingProjects
+        var route = await dbContext.ContextBindings
                         .AsNoTracking()
-                        .Where(p => p.Bindings.Any(binding => binding.BindingType == contextId.BindingType && binding.BindingName == contextId.BindingName))
-                        .Select(p => new ProjectRoute(p.MemoryProjectId, p.MemoryProjectName, p.Status, p.Bindings
-                            .Where(b => b.BindingType == contextId.BindingType && b.BindingName == contextId.BindingName)
-                            .Select(b => b.Status)
-                            .Single()))
-                        .SingleOrDefaultAsync(cancellationToken).ConfigureAwait(false);
+                        .Where(binding => binding.BindingType == contextId.BindingType && binding.BindingName == contextId.BindingName)
+                        .Select(binding => new ProjectRoute(binding.RoutingProject.MemoryProjectId, binding.RoutingProject.MemoryProjectName, binding.RoutingProject.Status, binding.Status))
+                        .SingleOrDefaultAsync(cancellationToken)
+                        .ConfigureAwait(false);
+
         return route;
     }
 
@@ -131,21 +130,12 @@ internal sealed class EfProjectRegistry : IProjectRegistry
     {
         ArgumentNullException.ThrowIfNull(contextId);
         await using var dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
-        var binding = await dbContext.RoutingProjects
-                          .AsNoTracking()
-                          .Where(project => project.Bindings.Any(item => item.BindingType == contextId.BindingType && item.BindingName == contextId.BindingName))
-                          .Select(project => new
-                          {
-                              project.MemoryProjectId,
-                              BindingStatus = project.Bindings
-                                .Where(item => item.BindingType == contextId.BindingType && item.BindingName == contextId.BindingName)
-                                .Select(item => item.Status)
-                                .Single()
-                          })
-                          .SingleOrDefaultAsync(cancellationToken)
-                          .ConfigureAwait(false);
-
-        return binding != null ? new ContextBinding(contextId, binding.MemoryProjectId, binding.BindingStatus) : null;
+        return await dbContext.ContextBindings
+                   .AsNoTracking()
+                   .Where(binding => binding.BindingType == contextId.BindingType && binding.BindingName == contextId.BindingName)
+                   .Select(binding => new ContextBinding(contextId, binding.RoutingProject.MemoryProjectId, binding.Status))
+                   .SingleOrDefaultAsync(cancellationToken)
+                   .ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -225,6 +215,7 @@ internal sealed class EfProjectRegistry : IProjectRegistry
     public async Task<bool> TryUpdateBindingStatusAsync(ContextId contextId, Status expectedStatus, Status newStatus, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(contextId);
+
         if (expectedStatus is not Status.Active and not Status.Inactive)
             throw new ArgumentOutOfRangeException(nameof(expectedStatus), expectedStatus, "The expected context binding status is unsupported.");
 
@@ -232,25 +223,15 @@ internal sealed class EfProjectRegistry : IProjectRegistry
             throw new ArgumentOutOfRangeException(nameof(newStatus), newStatus, "The new context binding status is unsupported.");
 
         await using var dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
-        var bindingType = contextId.BindingType.ToString();
-        var expectedStatusValue = expectedStatus.ToString();
-        var newStatusValue = newStatus.ToString();
-        var updatedAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-
-        // ContextBindingEntity is an owned collection mapped to its own table.
-        // Use a direct conditional update here instead of projecting the owned collection through SelectMany, which is fragile for this mapping.
-        var affectedRows = await dbContext.Database
-            .ExecuteSqlInterpolatedAsync(
-                $"""
-                UPDATE "ContextBindings"
-                SET "Status" = {newStatusValue},
-                    "UpdatedAt" = {updatedAt}
-                WHERE "BindingType" = {bindingType}
-                  AND "BindingName" = {contextId.BindingName}
-                  AND "Status" = {expectedStatusValue}
-                """,
-                cancellationToken)
-            .ConfigureAwait(false);
+        var updatedAt = DateTimeOffset.UtcNow;
+        var affectedRows = await dbContext.ContextBindings
+                               .Where(binding => binding.BindingType == contextId.BindingType && binding.BindingName == contextId.BindingName && binding.Status == expectedStatus)
+                               .ExecuteUpdateAsync(
+                                   setters => setters
+                                       .SetProperty(binding => binding.Status, newStatus)
+                                       .SetProperty(binding => binding.UpdatedAt, updatedAt),
+                                   cancellationToken)
+                               .ConfigureAwait(false);
 
         switch (affectedRows)
         {
@@ -269,18 +250,9 @@ internal sealed class EfProjectRegistry : IProjectRegistry
         ArgumentNullException.ThrowIfNull(contextId);
 
         await using var dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
-        var bindingType = contextId.BindingType.ToString();
-
-        // ContextBindingEntity is an owned collection mapped to its own table.
-        // Delete by the exact globally unique context identity so the operation itself is the concurrency boundary.
-        var affectedRows = await dbContext.Database
-                               .ExecuteSqlInterpolatedAsync(
-                                   $"""
-                                    DELETE FROM "ContextBindings"
-                                    WHERE "BindingType" = {bindingType}
-                                      AND "BindingName" = {contextId.BindingName}
-                                    """,
-                                   cancellationToken)
+        var affectedRows = await dbContext.ContextBindings
+                               .Where(binding => binding.BindingType == contextId.BindingType && binding.BindingName == contextId.BindingName)
+                               .ExecuteDeleteAsync(cancellationToken)
                                .ConfigureAwait(false);
 
         switch (affectedRows)

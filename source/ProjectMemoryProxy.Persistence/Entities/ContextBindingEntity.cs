@@ -9,7 +9,7 @@ using ProjectMemoryProxy.Core.Routing;
 /// <summary>
 /// Represents a link from binding IDs to a basic-memory project.
 /// </summary>
-[Table("ContextBindings"), Owned, Index(nameof(BindingType), nameof(BindingName), IsUnique = true)]
+[Table("ContextBindings"), Index(nameof(BindingType), nameof(BindingName), IsUnique = true)]
 internal sealed class ContextBindingEntity
 {
     #region Static Fields
@@ -36,6 +36,12 @@ internal sealed class ContextBindingEntity
     /// Gets or sets the routing project owner.
     /// </summary>
     public long RoutingProjectId { get; set; }
+
+    /// <summary>
+    /// Gets or sets the routing project owner.
+    /// </summary>
+    [ForeignKey(nameof(RoutingProjectId)), InverseProperty(nameof(ProjectRoutingEntity.Bindings))]
+    public ProjectRoutingEntity RoutingProject { get; set; } = null!;
 
     /// <summary>
     /// Gets or sets the type of the binding

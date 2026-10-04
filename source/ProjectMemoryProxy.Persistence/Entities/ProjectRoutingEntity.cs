@@ -66,7 +66,7 @@ internal sealed class ProjectRoutingEntity
     /// <summary>
     /// Gets or sets the project bindings of the project routing.
     /// </summary>
-    [ForeignKey(nameof(ContextBindingEntity.RoutingProjectId))]
+    [InverseProperty(nameof(ContextBindingEntity.RoutingProject))]
     public ICollection<ContextBindingEntity> Bindings { get; set; } = new List<ContextBindingEntity>();
     
     #endregion
