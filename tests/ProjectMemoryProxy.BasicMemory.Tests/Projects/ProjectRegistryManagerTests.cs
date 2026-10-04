@@ -1,13 +1,16 @@
 namespace ProjectMemoryProxy.BasicMemory.Tests.Projects;
 
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-using ProjectMemoryProxy.BasicMemory.Projects;
-using ProjectMemoryProxy.Core.Routing;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+using ProjectMemoryProxy.BasicMemory.Projects;
+using ProjectMemoryProxy.BasicMemory.Projects.ControlPlane;
+using ProjectMemoryProxy.BasicMemory.Projects.Directory;
+using ProjectMemoryProxy.BasicMemory.Projects.Lifecycle;
+using ProjectMemoryProxy.Core.Routing;
 
 /// <summary>
 /// Tests for <see cref="ProjectRegistryManager"/>

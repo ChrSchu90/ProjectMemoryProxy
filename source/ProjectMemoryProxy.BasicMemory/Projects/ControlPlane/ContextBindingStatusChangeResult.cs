@@ -1,4 +1,4 @@
-namespace ProjectMemoryProxy.BasicMemory.Projects;
+namespace ProjectMemoryProxy.BasicMemory.Projects.ControlPlane;
 
 using ProjectMemoryProxy.Core.Routing;
 

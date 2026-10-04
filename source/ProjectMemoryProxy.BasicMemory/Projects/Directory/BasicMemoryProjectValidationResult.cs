@@ -1,5 +1,4 @@
-namespace ProjectMemoryProxy.BasicMemory.Projects;
-
+namespace ProjectMemoryProxy.BasicMemory.Projects.Directory;
 /// <summary>
 /// Represents the result of validating a Basic Memory project identity.
 /// </summary>

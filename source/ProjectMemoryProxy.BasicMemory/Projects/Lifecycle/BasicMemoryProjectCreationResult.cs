@@ -1,4 +1,6 @@
-namespace ProjectMemoryProxy.BasicMemory.Projects;
+namespace ProjectMemoryProxy.BasicMemory.Projects.Lifecycle;
+
+using ProjectMemoryProxy.BasicMemory.Projects.Directory;
 
 /// <summary>
 /// Represents the normalized result of a Basic Memory project creation operation.

@@ -22,6 +22,8 @@ using ProjectMemoryProxy.BasicMemory.Client;
 using ProjectMemoryProxy.BasicMemory.Discovery;
 using ProjectMemoryProxy.BasicMemory.Mirroring;
 using ProjectMemoryProxy.BasicMemory.Projects;
+using ProjectMemoryProxy.BasicMemory.Projects.Directory;
+using ProjectMemoryProxy.BasicMemory.Projects.Lifecycle;
 using ProjectMemoryProxy.Core.Configuration;
 using ProjectMemoryProxy.Core.Routing;
 

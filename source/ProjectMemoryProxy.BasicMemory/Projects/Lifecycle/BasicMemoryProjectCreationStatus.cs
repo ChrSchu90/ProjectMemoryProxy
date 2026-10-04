@@ -1,4 +1,4 @@
-namespace ProjectMemoryProxy.BasicMemory.Projects;
+namespace ProjectMemoryProxy.BasicMemory.Projects.Lifecycle;
 
 /// <summary>
 /// Describes the outcome reported by Basic Memory when creating a project.

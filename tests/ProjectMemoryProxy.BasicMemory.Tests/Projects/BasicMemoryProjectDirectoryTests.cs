@@ -19,7 +19,7 @@ using ModelContextProtocol.AspNetCore;
 using ModelContextProtocol.Server;
 using ProjectMemoryProxy.BasicMemory.Client;
 using ProjectMemoryProxy.BasicMemory.Discovery;
-using ProjectMemoryProxy.BasicMemory.Projects;
+using ProjectMemoryProxy.BasicMemory.Projects.Directory;
 using ProjectMemoryProxy.Core.Configuration;
 
 /// <summary>

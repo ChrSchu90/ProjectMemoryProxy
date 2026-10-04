@@ -1,5 +1,4 @@
-namespace ProjectMemoryProxy.BasicMemory.Projects;
-
+namespace ProjectMemoryProxy.BasicMemory.Projects.ControlPlane;
 /// <summary>
 /// Represents the result of removing a context binding.
 /// </summary>

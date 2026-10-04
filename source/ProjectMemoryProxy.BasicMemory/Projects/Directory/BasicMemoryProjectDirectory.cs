@@ -1,13 +1,13 @@
-namespace ProjectMemoryProxy.BasicMemory.Projects;
+namespace ProjectMemoryProxy.BasicMemory.Projects.Directory;
 
-using ModelContextProtocol.Protocol;
-using ProjectMemoryProxy.BasicMemory.Discovery;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using ModelContextProtocol.Protocol;
+using ProjectMemoryProxy.BasicMemory.Discovery;
 
 /// <summary>
 /// Provides read-only discovery and identity validation for local Basic Memory projects.

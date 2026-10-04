@@ -1,4 +1,4 @@
-namespace ProjectMemoryProxy.BasicMemory.Projects;
+namespace ProjectMemoryProxy.BasicMemory.Projects.Lifecycle;
 
 using System.Threading;
 using System.Threading.Tasks;

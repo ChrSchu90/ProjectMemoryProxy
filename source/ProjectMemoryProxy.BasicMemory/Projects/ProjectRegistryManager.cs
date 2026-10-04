@@ -1,11 +1,14 @@
 namespace ProjectMemoryProxy.BasicMemory.Projects;
 
-using ProjectMemoryProxy.Core.Routing;
 using System;
 using System.IO;
 using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
+using ProjectMemoryProxy.BasicMemory.Projects.ControlPlane;
+using ProjectMemoryProxy.BasicMemory.Projects.Directory;
+using ProjectMemoryProxy.BasicMemory.Projects.Lifecycle;
+using ProjectMemoryProxy.Core.Routing;
 
 /// <summary>
 /// Coordinates validated Basic Memory projects with the ProjectMemoryProxy routing registry.

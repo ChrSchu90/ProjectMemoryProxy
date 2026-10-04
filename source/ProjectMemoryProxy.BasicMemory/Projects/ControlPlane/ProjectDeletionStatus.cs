@@ -1,4 +1,4 @@
-namespace ProjectMemoryProxy.BasicMemory.Projects;
+namespace ProjectMemoryProxy.BasicMemory.Projects.ControlPlane;
 
 /// <summary>
 /// Describes the outcome of deleting a Basic Memory project and its ProjectMemoryProxy routing.
