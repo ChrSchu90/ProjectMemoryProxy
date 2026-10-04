@@ -63,7 +63,7 @@ public sealed class BasicMemoryProjectDirectoryTests
         ]);
 
         var projects = await fixture.Directory.ListAsync();
-        Assert.AreEqual(2, projects.Count);
+        Assert.HasCount(2, projects);
         Assert.AreEqual(ProjectAId, projects[0].MemoryProjectId);
         Assert.AreEqual("project-a", projects[0].MemoryProjectName);
         Assert.AreEqual(ProjectBId, projects[1].MemoryProjectId);
