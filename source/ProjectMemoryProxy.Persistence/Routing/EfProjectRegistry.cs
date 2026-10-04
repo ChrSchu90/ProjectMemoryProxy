@@ -1,5 +1,6 @@
 namespace ProjectMemoryProxy.Persistence.Routing;
 
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using ProjectMemoryProxy.Core.Routing;
 using ProjectMemoryProxy.Persistence.Entities;
@@ -7,7 +8,6 @@ using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Data.Sqlite;
 
 /// <summary>
 /// Stores memory project lifecycle metadata in the EF Core database.
@@ -186,6 +186,81 @@ internal sealed class EfProjectRegistry : IProjectRegistry
         }
 
         return new ContextBinding(contextId, memoryProjectId, entity.Status);
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> TryUpdateProjectStatusAsync(Guid memoryProjectId, Status expectedStatus, Status newStatus, CancellationToken cancellationToken = default)
+    {
+        if (memoryProjectId == Guid.Empty)
+            throw new ArgumentException("The Basic Memory project identifier must not be empty.", nameof(memoryProjectId));
+
+        if (expectedStatus is not Status.Active and not Status.Inactive)
+            throw new ArgumentOutOfRangeException(nameof(expectedStatus), expectedStatus, "The expected project routing status is unsupported.");
+
+        if (newStatus is not Status.Active and not Status.Inactive)
+            throw new ArgumentOutOfRangeException(nameof(newStatus), newStatus, "The new project routing status is unsupported.");
+
+        await using var dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+        var updatedAt = DateTimeOffset.UtcNow;
+        var affectedRows = await dbContext.RoutingProjects
+                               .Where(project => project.MemoryProjectId == memoryProjectId && project.Status == expectedStatus)
+                               .ExecuteUpdateAsync(setters => setters
+                                       .SetProperty(project => project.Status, newStatus)
+                                       .SetProperty(project => project.UpdatedAt, updatedAt),
+                                   cancellationToken)
+                               .ConfigureAwait(false);
+
+        switch (affectedRows)
+        {
+            case 0:
+                return false;
+            case 1:
+                return true;
+            default:
+                throw new InvalidOperationException($"Updating project routing '{memoryProjectId:D}' affected more than one row.");
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> TryUpdateBindingStatusAsync(ContextId contextId, Status expectedStatus, Status newStatus, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(contextId);
+        if (expectedStatus is not Status.Active and not Status.Inactive)
+            throw new ArgumentOutOfRangeException(nameof(expectedStatus), expectedStatus, "The expected context binding status is unsupported.");
+
+        if (newStatus is not Status.Active and not Status.Inactive)
+            throw new ArgumentOutOfRangeException(nameof(newStatus), newStatus, "The new context binding status is unsupported.");
+
+        await using var dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+        var bindingType = contextId.BindingType.ToString();
+        var expectedStatusValue = expectedStatus.ToString();
+        var newStatusValue = newStatus.ToString();
+        var updatedAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+
+        // ContextBindingEntity is an owned collection mapped to its own table.
+        // Use a direct conditional update here instead of projecting the owned collection through SelectMany, which is fragile for this mapping.
+        var affectedRows = await dbContext.Database
+            .ExecuteSqlInterpolatedAsync(
+                $"""
+                UPDATE "ContextBindings"
+                SET "Status" = {newStatusValue},
+                    "UpdatedAt" = {updatedAt}
+                WHERE "BindingType" = {bindingType}
+                  AND "BindingName" = {contextId.BindingName}
+                  AND "Status" = {expectedStatusValue}
+                """,
+                cancellationToken)
+            .ConfigureAwait(false);
+
+        switch (affectedRows)
+        {
+            case 0:
+                return false;
+            case 1:
+                return true;
+            default:
+                throw new InvalidOperationException($"Updating context binding '{contextId}' affected more than one row.");
+        }
     }
 
     #endregion

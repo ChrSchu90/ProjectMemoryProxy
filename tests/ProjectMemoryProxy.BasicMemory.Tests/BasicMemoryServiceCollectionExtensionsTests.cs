@@ -289,6 +289,16 @@ public sealed class BasicMemoryServiceCollectionExtensionsTests
             throw new NotSupportedException();
         }
 
+        public Task<bool> TryUpdateProjectStatusAsync(Guid memoryProjectId, Status expectedStatus, Status newStatus, CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<bool> TryUpdateBindingStatusAsync(ContextId contextId, Status expectedStatus, Status newStatus, CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException();
+        }
+
         #endregion
     }
 

@@ -72,5 +72,25 @@ public interface IProjectRegistry
     /// <returns>The created binding.</returns>
     Task<ContextBinding> CreateBindingAsync(ContextId contextId, Guid memoryProjectId, Status status, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Attempts to change a project-routing status only when the persisted status still matches the expected status.
+    /// </summary>
+    /// <param name="memoryProjectId">The Basic Memory external project identifier.</param>
+    /// <param name="expectedStatus">The status that must currently be persisted.</param>
+    /// <param name="newStatus">The status to persist.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns><see langword="true"/> when exactly one routing was updated; otherwise <see langword="false"/>.</returns>
+    Task<bool> TryUpdateProjectStatusAsync(Guid memoryProjectId, Status expectedStatus, Status newStatus, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Attempts to change a context-binding status only when the persisted status still matches the expected status.
+    /// </summary>
+    /// <param name="contextId">The exact technical context identifier.</param>
+    /// <param name="expectedStatus">The status that must currently be persisted.</param>
+    /// <param name="newStatus">The status to persist.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns><see langword="true"/> when exactly one binding was updated; otherwise <see langword="false"/>.</returns>
+    Task<bool> TryUpdateBindingStatusAsync(ContextId contextId, Status expectedStatus, Status newStatus, CancellationToken cancellationToken = default);
+
     #endregion
 }

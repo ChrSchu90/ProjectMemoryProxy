@@ -432,6 +432,297 @@ public sealed class ProjectRegistryManagerTests
         Assert.AreEqual(0, projectRegistry.TotalCallCount);
     }
 
+    /// <summary>
+    /// Verifies that an active project routing is deactivated without revalidating the Basic Memory project.
+    /// </summary>
+    [TestMethod]
+    public async Task DeactivateProjectAsyncDeactivatesActiveRouting()
+    {
+        var projectDirectory = CreateProjectDirectory(BasicMemoryProjectValidationStatus.ExactMatch);
+        var projectRegistry = new StubProjectRegistry { ProjectById = new ProjectRouting(ProjectAId, "project-a", Status.Active) };
+        var manager = new ProjectRegistryManager(projectDirectory, projectRegistry);
+        var result = await manager.DeactivateProjectAsync(ProjectAId);
+        Assert.AreEqual(ProjectRoutingStatusChangeStatus.Updated, result.Status);
+
+        Assert.IsNotNull(result.Routing);
+        Assert.AreEqual(ProjectAId, result.Routing.MemoryProjectId);
+        Assert.AreEqual("project-a", result.Routing.MemoryProjectName);
+        Assert.AreEqual(Status.Inactive, result.Routing.Status);
+
+        Assert.AreEqual(0, projectDirectory.ValidateCallCount);
+        Assert.AreEqual(1, projectRegistry.TryUpdateProjectStatusCallCount);
+        Assert.AreEqual(ProjectAId, projectRegistry.UpdatedProjectMemoryProjectId);
+        Assert.AreEqual(Status.Active, projectRegistry.ExpectedProjectStatus);
+        Assert.AreEqual(Status.Inactive, projectRegistry.NewProjectStatus);
+    }
+
+    /// <summary>
+    /// Verifies that deactivating an already inactive project routing is idempotent and performs no persistence update.
+    /// </summary>
+    [TestMethod]
+    public async Task DeactivateProjectAsyncReturnsAlreadyInactive()
+    {
+        var projectDirectory = CreateProjectDirectory(BasicMemoryProjectValidationStatus.ExactMatch);
+        var existing = new ProjectRouting(ProjectAId, "project-a", Status.Inactive);
+        var projectRegistry = new StubProjectRegistry { ProjectById = existing };
+        var manager = new ProjectRegistryManager(projectDirectory, projectRegistry);
+
+        var result = await manager.DeactivateProjectAsync(ProjectAId);
+        Assert.AreEqual(ProjectRoutingStatusChangeStatus.AlreadyInRequestedState, result.Status);
+        Assert.AreEqual(existing, result.Routing);
+        Assert.AreEqual(0, projectDirectory.ValidateCallCount);
+        Assert.AreEqual(0, projectRegistry.TryUpdateProjectStatusCallCount);
+    }
+
+    /// <summary>
+    /// Verifies that an inactive project routing is reactivated only after its exact Basic Memory identity is revalidated.
+    /// </summary>
+    [TestMethod]
+    public async Task ReactivateProjectAsyncValidatesAndActivatesRouting()
+    {
+        var projectDirectory = CreateProjectDirectory(BasicMemoryProjectValidationStatus.ExactMatch);
+        var projectRegistry = new StubProjectRegistry { ProjectById = new ProjectRouting(ProjectAId, "project-a", Status.Inactive) };
+        var manager = new ProjectRegistryManager(projectDirectory, projectRegistry);
+
+        var result = await manager.ReactivateProjectAsync(ProjectAId);
+        Assert.AreEqual(ProjectRoutingStatusChangeStatus.Updated, result.Status);
+
+        Assert.IsNotNull(result.Routing);
+        Assert.AreEqual(Status.Active, result.Routing.Status);
+
+        Assert.AreEqual(1, projectDirectory.ValidateCallCount);
+        Assert.AreEqual(ProjectAId, projectDirectory.ValidatedMemoryProjectId);
+        Assert.AreEqual("project-a", projectDirectory.ValidatedMemoryProjectName);
+
+        Assert.AreEqual(1, projectRegistry.TryUpdateProjectStatusCallCount);
+        Assert.AreEqual(Status.Inactive, projectRegistry.ExpectedProjectStatus);
+        Assert.AreEqual(Status.Active, projectRegistry.NewProjectStatus);
+    }
+
+    /// <summary>
+    /// Verifies that project reactivation fails closed when the registered Basic Memory project no longer exists.
+    /// </summary>
+    [TestMethod]
+    public async Task ReactivateProjectAsyncRejectsMissingBasicMemoryProject()
+    {
+        var projectDirectory = CreateProjectDirectory(BasicMemoryProjectValidationStatus.NotFound);
+        var projectRegistry = new StubProjectRegistry
+        {
+            ProjectById = new ProjectRouting(ProjectAId, "project-a", Status.Inactive)
+        };
+
+        var manager = new ProjectRegistryManager(projectDirectory, projectRegistry);
+        var result = await manager.ReactivateProjectAsync(ProjectAId);
+        Assert.AreEqual(ProjectRoutingStatusChangeStatus.BasicMemoryProjectNotFound, result.Status);
+        Assert.IsNull(result.Routing);
+        Assert.AreEqual(1, projectDirectory.ValidateCallCount);
+        Assert.AreEqual(0, projectRegistry.TryUpdateProjectStatusCallCount);
+    }
+
+    /// <summary>
+    /// Verifies that project reactivation fails closed when the persisted Basic Memory project name no longer matches its identifier.
+    /// </summary>
+    [TestMethod]
+    public async Task ReactivateProjectAsyncRejectsBasicMemoryNameMismatch()
+    {
+        await AssertProjectReactivationValidationFailureAsync(BasicMemoryProjectValidationStatus.NameMismatch, ProjectRoutingStatusChangeStatus.BasicMemoryProjectNameMismatch);
+    }
+
+    /// <summary>
+    /// Verifies that project reactivation fails closed when the persisted Basic Memory project identifier no longer matches its name.
+    /// </summary>
+    [TestMethod]
+    public async Task ReactivateProjectAsyncRejectsBasicMemoryIdMismatch()
+    {
+        await AssertProjectReactivationValidationFailureAsync(BasicMemoryProjectValidationStatus.IdMismatch, ProjectRoutingStatusChangeStatus.BasicMemoryProjectIdMismatch);
+    }
+
+    /// <summary>
+    /// Verifies that project reactivation fails closed when the persisted Basic Memory identity resolves to conflicting projects.
+    /// </summary>
+    [TestMethod]
+    public async Task ReactivateProjectAsyncRejectsBasicMemoryIdentityConflict()
+    {
+        await AssertProjectReactivationValidationFailureAsync(BasicMemoryProjectValidationStatus.IdentityConflict, ProjectRoutingStatusChangeStatus.BasicMemoryProjectIdentityConflict);
+    }
+
+    /// <summary>
+    /// Verifies that a concurrent project deactivation is recovered by re-reading registry state and returning an idempotent success.
+    /// </summary>
+    [TestMethod]
+    public async Task DeactivateProjectAsyncHandlesConcurrentExactUpdate()
+    {
+        var projectDirectory = CreateProjectDirectory(BasicMemoryProjectValidationStatus.ExactMatch);
+        var projectRegistry = new StubProjectRegistry { ProjectById = new ProjectRouting(ProjectAId, "project-a", Status.Active) };
+        projectRegistry.TryUpdateProjectStatusHandler = (memoryProjectId, expectedStatus, newStatus, cancellationToken) =>
+        {
+            projectRegistry.ProjectById = new ProjectRouting(ProjectAId, "project-a", Status.Inactive);
+            return Task.FromResult(false);
+        };
+
+        var manager = new ProjectRegistryManager(projectDirectory, projectRegistry);
+        var result = await manager.DeactivateProjectAsync(ProjectAId);
+        Assert.AreEqual(ProjectRoutingStatusChangeStatus.AlreadyInRequestedState, result.Status);
+        Assert.IsNotNull(result.Routing);
+        Assert.AreEqual(Status.Inactive, result.Routing.Status);
+        Assert.AreEqual(2, projectRegistry.FindByIdCallCount);
+        Assert.AreEqual(1, projectRegistry.TryUpdateProjectStatusCallCount);
+    }
+
+    /// <summary>
+    /// Verifies that an unresolved concurrent project status change fails closed when the persisted state remains unexpected.
+    /// </summary>
+    [TestMethod]
+    public async Task DeactivateProjectAsyncFailsClosedForConcurrentConflict()
+    {
+        var projectDirectory = CreateProjectDirectory(BasicMemoryProjectValidationStatus.ExactMatch);
+        var projectRegistry = new StubProjectRegistry
+        {
+            ProjectById = new ProjectRouting(ProjectAId, "project-a", Status.Active),
+            TryUpdateProjectStatusHandler = (memoryProjectId, expectedStatus, newStatus, cancellationToken) => Task.FromResult(false)
+        };
+
+        var manager = new ProjectRegistryManager(projectDirectory, projectRegistry);
+        var result = await manager.DeactivateProjectAsync(ProjectAId);
+        Assert.AreEqual(ProjectRoutingStatusChangeStatus.RegistryWriteConflict, result.Status);
+        Assert.IsNull(result.Routing);
+        Assert.AreEqual(2, projectRegistry.FindByIdCallCount);
+    }
+
+    /// <summary>
+    /// Verifies that an active context binding is deactivated without changing or inspecting its target project routing.
+    /// </summary>
+    [TestMethod]
+    public async Task DeactivateContextAsyncDeactivatesActiveBinding()
+    {
+        var projectDirectory = CreateProjectDirectory(BasicMemoryProjectValidationStatus.ExactMatch);
+        var projectRegistry = new StubProjectRegistry { Binding = new ContextBinding(GitContext, ProjectAId, Status.Active) };
+        var manager = new ProjectRegistryManager(projectDirectory, projectRegistry);
+        var result = await manager.DeactivateContextAsync(GitContext);
+        Assert.AreEqual(ContextBindingStatusChangeStatus.Updated, result.Status);
+
+        Assert.IsNotNull(result.Binding);
+        Assert.AreEqual(Status.Inactive, result.Binding.Status);
+
+        Assert.AreEqual(0, projectRegistry.FindByIdCallCount);
+        Assert.AreEqual(1, projectRegistry.TryUpdateBindingStatusCallCount);
+        Assert.AreEqual(GitContext, projectRegistry.UpdatedBindingContextId);
+        Assert.AreEqual(Status.Active, projectRegistry.ExpectedBindingStatus);
+        Assert.AreEqual(Status.Inactive, projectRegistry.NewBindingStatus);
+    }
+
+    /// <summary>
+    /// Verifies that an inactive context binding is reactivated when its target project routing is active.
+    /// </summary>
+    [TestMethod]
+    public async Task ReactivateContextAsyncActivatesBindingForActiveProject()
+    {
+        var projectDirectory = CreateProjectDirectory(BasicMemoryProjectValidationStatus.ExactMatch);
+        var projectRegistry = new StubProjectRegistry
+        {
+            Binding = new ContextBinding(GitContext, ProjectAId, Status.Inactive),
+            ProjectById = new ProjectRouting(ProjectAId, "project-a", Status.Active)
+        };
+
+        var manager = new ProjectRegistryManager(projectDirectory, projectRegistry);
+        var result = await manager.ReactivateContextAsync(GitContext);
+        Assert.AreEqual(ContextBindingStatusChangeStatus.Updated, result.Status);
+        Assert.IsNotNull(result.Binding);
+        Assert.AreEqual(Status.Active, result.Binding.Status);
+        Assert.AreEqual(1, projectRegistry.FindByIdCallCount);
+        Assert.AreEqual(1, projectRegistry.TryUpdateBindingStatusCallCount);
+        Assert.AreEqual(Status.Inactive, projectRegistry.ExpectedBindingStatus);
+        Assert.AreEqual(Status.Active, projectRegistry.NewBindingStatus);
+    }
+
+    /// <summary>
+    /// Verifies that a context binding cannot be reactivated while its target project routing is inactive.
+    /// </summary>
+    [TestMethod]
+    public async Task ReactivateContextAsyncRejectsInactiveProjectRouting()
+    {
+        var projectDirectory = CreateProjectDirectory(BasicMemoryProjectValidationStatus.ExactMatch);
+        var projectRegistry = new StubProjectRegistry
+        {
+            Binding = new ContextBinding(GitContext, ProjectAId, Status.Inactive),
+            ProjectById = new ProjectRouting(ProjectAId, "project-a", Status.Inactive)
+        };
+
+        var manager = new ProjectRegistryManager(projectDirectory, projectRegistry);
+        var result = await manager.ReactivateContextAsync(GitContext);
+        Assert.AreEqual(ContextBindingStatusChangeStatus.ProjectRoutingInactive, result.Status);
+        Assert.IsNull(result.Binding);
+        Assert.AreEqual(0, projectRegistry.TryUpdateBindingStatusCallCount);
+    }
+
+    /// <summary>
+    /// Verifies that a context binding cannot be reactivated when its target project routing no longer exists.
+    /// </summary>
+    [TestMethod]
+    public async Task ReactivateContextAsyncRejectsMissingProjectRouting()
+    {
+        var projectDirectory = CreateProjectDirectory(BasicMemoryProjectValidationStatus.ExactMatch);
+        var projectRegistry = new StubProjectRegistry
+        {
+            Binding = new ContextBinding(GitContext, ProjectAId, Status.Inactive)
+        };
+
+        var manager = new ProjectRegistryManager(projectDirectory, projectRegistry);
+        var result = await manager.ReactivateContextAsync(GitContext);
+        Assert.AreEqual(ContextBindingStatusChangeStatus.ProjectRoutingNotFound, result.Status);
+        Assert.IsNull(result.Binding);
+        Assert.AreEqual(0, projectRegistry.TryUpdateBindingStatusCallCount);
+    }
+
+    /// <summary>
+    /// Verifies that a concurrent context reactivation is recovered by re-reading registry state and returning an idempotent success.
+    /// </summary>
+    [TestMethod]
+    public async Task ReactivateContextAsyncHandlesConcurrentExactUpdate()
+    {
+        var projectDirectory = CreateProjectDirectory(BasicMemoryProjectValidationStatus.ExactMatch);
+        var projectRegistry = new StubProjectRegistry
+        {
+            Binding = new ContextBinding(GitContext, ProjectAId, Status.Inactive),
+            ProjectById = new ProjectRouting(ProjectAId, "project-a", Status.Active)
+        };
+
+        projectRegistry.TryUpdateBindingStatusHandler = (contextId, expectedStatus, newStatus, cancellationToken) =>
+        {
+            projectRegistry.Binding = new ContextBinding(GitContext, ProjectAId, Status.Active);
+            return Task.FromResult(false);
+        };
+
+        var manager = new ProjectRegistryManager(projectDirectory, projectRegistry);
+        var result = await manager.ReactivateContextAsync(GitContext);
+        Assert.AreEqual(ContextBindingStatusChangeStatus.AlreadyInRequestedState, result.Status);
+        Assert.IsNotNull(result.Binding);
+        Assert.AreEqual(Status.Active, result.Binding.Status);
+        Assert.AreEqual(2, projectRegistry.FindBindingCallCount);
+        Assert.AreEqual(1, projectRegistry.TryUpdateBindingStatusCallCount);
+    }
+
+    /// <summary>
+    /// Verifies that an unresolved concurrent context status change fails closed when the persisted state remains unexpected.
+    /// </summary>
+    [TestMethod]
+    public async Task ReactivateContextAsyncFailsClosedForConcurrentConflict()
+    {
+        var projectDirectory = CreateProjectDirectory(BasicMemoryProjectValidationStatus.ExactMatch);
+        var projectRegistry = new StubProjectRegistry
+        {
+            Binding = new ContextBinding(GitContext, ProjectAId, Status.Inactive),
+            ProjectById = new ProjectRouting(ProjectAId, "project-a", Status.Active),
+            TryUpdateBindingStatusHandler = (contextId, expectedStatus, newStatus, cancellationToken) => Task.FromResult(false)
+        };
+
+        var manager = new ProjectRegistryManager(projectDirectory, projectRegistry);
+        var result = await manager.ReactivateContextAsync(GitContext);
+        Assert.AreEqual(ContextBindingStatusChangeStatus.RegistryWriteConflict, result.Status);
+        Assert.IsNull(result.Binding);
+        Assert.AreEqual(2, projectRegistry.FindBindingCallCount);
+    }
+
     #endregion
 
     #region Private Methods
@@ -461,6 +752,19 @@ public sealed class ProjectRegistryManagerTests
         return contextId;
     }
 
+    private static async Task AssertProjectReactivationValidationFailureAsync(BasicMemoryProjectValidationStatus validationStatus, ProjectRoutingStatusChangeStatus expectedStatus)
+    {
+        var projectDirectory = CreateProjectDirectory(validationStatus);
+        var projectRegistry = new StubProjectRegistry { ProjectById = new ProjectRouting(ProjectAId, "project-a", Status.Inactive) };
+
+        var manager = new ProjectRegistryManager(projectDirectory, projectRegistry);
+        var result = await manager.ReactivateProjectAsync(ProjectAId);
+        Assert.AreEqual(expectedStatus, result.Status);
+        Assert.IsNull(result.Routing);
+        Assert.AreEqual(1, projectDirectory.ValidateCallCount);
+        Assert.AreEqual(0, projectRegistry.TryUpdateProjectStatusCallCount);
+    }
+
     #endregion
 
     #region Test Classes
@@ -486,6 +790,10 @@ public sealed class ProjectRegistryManagerTests
 
         public int ValidateCallCount { get; private set; }
 
+        public Guid? ValidatedMemoryProjectId { get; private set; }
+
+        public string? ValidatedMemoryProjectName { get; private set; }
+
         #endregion
 
         #region Public Methods
@@ -499,6 +807,8 @@ public sealed class ProjectRegistryManagerTests
         {
             cancellationToken.ThrowIfCancellationRequested();
             ValidateCallCount++;
+            ValidatedMemoryProjectId = memoryProjectId;
+            ValidatedMemoryProjectName = memoryProjectName;
             return Task.FromResult(_validationResult);
         }
 
@@ -535,13 +845,33 @@ public sealed class ProjectRegistryManagerTests
 
         public int CreateCallCount { get; private set; }
 
-        public int TotalCallCount => FindByIdCallCount + FindByNameCallCount + CreateCallCount + FindBindingCallCount + CreateBindingCallCount;
+        public int TotalCallCount => FindByIdCallCount + FindByNameCallCount + CreateCallCount + FindBindingCallCount + CreateBindingCallCount + TryUpdateProjectStatusCallCount + TryUpdateBindingStatusCallCount;
 
         public Guid? CreatedMemoryProjectId { get; private set; }
 
         public string? CreatedMemoryProjectName { get; private set; }
 
         public Status? CreatedStatus { get; private set; }
+
+        public Func<Guid, Status, Status, CancellationToken, Task<bool>>? TryUpdateProjectStatusHandler { get; set; }
+
+        public Func<ContextId, Status, Status, CancellationToken, Task<bool>>? TryUpdateBindingStatusHandler { get; set; }
+
+        public int TryUpdateProjectStatusCallCount { get; private set; }
+
+        public int TryUpdateBindingStatusCallCount { get; private set; }
+
+        public Guid? UpdatedProjectMemoryProjectId { get; private set; }
+
+        public Status? ExpectedProjectStatus { get; private set; }
+
+        public Status? NewProjectStatus { get; private set; }
+
+        public ContextId? UpdatedBindingContextId { get; private set; }
+
+        public Status? ExpectedBindingStatus { get; private set; }
+
+        public Status? NewBindingStatus { get; private set; }
 
         #endregion
 
@@ -597,6 +927,32 @@ public sealed class ProjectRegistryManagerTests
             return CreateBindingHandler != null ?
                        CreateBindingHandler(contextId, memoryProjectId, status, cancellationToken) :
                        Task.FromResult(new ContextBinding(contextId, memoryProjectId, status));
+        }
+
+        public Task<bool> TryUpdateProjectStatusAsync(Guid memoryProjectId, Status expectedStatus, Status newStatus, CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            TryUpdateProjectStatusCallCount++;
+            UpdatedProjectMemoryProjectId = memoryProjectId;
+            ExpectedProjectStatus = expectedStatus;
+            NewProjectStatus = newStatus;
+
+            return TryUpdateProjectStatusHandler != null ?
+                       TryUpdateProjectStatusHandler(memoryProjectId, expectedStatus, newStatus, cancellationToken)
+                       : Task.FromResult(true);
+        }
+
+        public Task<bool> TryUpdateBindingStatusAsync(ContextId contextId, Status expectedStatus, Status newStatus, CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            TryUpdateBindingStatusCallCount++;
+            UpdatedBindingContextId = contextId;
+            ExpectedBindingStatus = expectedStatus;
+            NewBindingStatus = newStatus;
+
+            return TryUpdateBindingStatusHandler != null ?
+                       TryUpdateBindingStatusHandler(contextId, expectedStatus, newStatus, cancellationToken) :
+                       Task.FromResult(true);
         }
 
         #endregion
