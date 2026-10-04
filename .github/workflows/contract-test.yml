@@ -3,7 +3,7 @@ name: Basic Memory Contract Monitor
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 17 * * *' # Every Friday at 17:00 UTC
+    - cron: '0 17 * * *' # Every day at 17:00 UTC
   push:
     branches:
       - main
@@ -200,13 +200,23 @@ jobs:
         run: |
           set -euo pipefail
 
+          mkdir -p "$DIAGNOSTICS_DIR/TestResults"
+
           dotnet test "$CONTRACT_TEST_PROJECT" \
             --configuration Release \
             --no-restore \
             --no-build \
-            --logger "console;verbosity=detailed" \
-            --logger "trx;LogFileName=basic-memory-contract.trx" \
             --results-directory "$DIAGNOSTICS_DIR/TestResults" \
+            -- \
+            --output Detailed \
+            --no-progress \
+            --report-trx \
+            --report-trx-filename basic-memory-contract.trx \
+            --minimum-expected-tests 1 \
+            --diagnostic \
+            --diagnostic-verbosity Information \
+            --diagnostic-output-directory "$DIAGNOSTICS_DIR/TestResults" \
+            --diagnostic-file-prefix basic-memory-contract \
             2>&1 | tee "$DIAGNOSTICS_DIR/test-console.log"
 
       - name: Collect Basic Memory diagnostics
@@ -239,7 +249,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: basic-memory-contract-diagnostics-${{ github.run_id }}
-          path: artifacts/basic-memory-contract/
+          path: ${{ env.DIAGNOSTICS_DIR }}/
           if-no-files-found: warn
           retention-days: 14
 
