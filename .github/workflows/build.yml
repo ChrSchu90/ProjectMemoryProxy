@@ -10,6 +10,9 @@ on:
     paths-ignore:
       - '**/*.md'
       - '**/*.png'
+      - 'LICENSE*'
+      - '.github/compose.contract-test.yml'
+      - '.github/workflows/contract-test.yml'
     tags:
       - 'v*'
   pull_request:

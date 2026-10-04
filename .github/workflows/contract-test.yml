@@ -7,12 +7,10 @@ on:
   push:
     branches:
       - main
-    paths:
-      - 'source/ProjectMemoryProxy.BasicMemory/**'
-      - 'source/ProjectMemoryProxy.Core/**'
-      - 'tests/ProjectMemoryProxy.BasicMemory.Tests/**'
-      - '.github/compose.contract-test.yml'
-      - '.github/workflows/contract-test.yml'
+    paths-ignore:
+      - '**/*.md'
+      - '**/*.png'
+      - 'LICENSE*'
 
 permissions:
   contents: read
@@ -23,7 +21,7 @@ concurrency:
 
 env:
   COMPOSE_FILE: .github/compose.contract-test.yml
-  CONTRACT_TEST_PROJECT: tests/ProjectMemoryProxy.BasicMemory.Tests/ProjectMemoryProxy.BasicMemory.Tests.csproj
+  CONTRACT_TEST_PROJECT: ProjectMemoryProxy.slnx
   DIAGNOSTICS_DIR: artifacts/contract-test
   PORT_MEMORY_MCP_EXT: '54799'
   PROJECTMEMORYPROXY_TEST_BASIC_MEMORY_ENDPOINT: http://127.0.0.1:54799/mcp
