@@ -2,8 +2,10 @@
   <Folder Name="/Solution Items/">
     <File Path=".editorconfig" />
     <File Path=".gitattributes" />
+    <File Path=".github/compose.contract-test.yml" />
     <File Path=".github/dependabot.yml" />
     <File Path=".github/workflows/build.yml" />
+    <File Path=".github/workflows/contract-test.yml" />
     <File Path=".gitignore" />
     <File Path="Directory.Build.props" />
     <File Path="dotnet-tools.json" />

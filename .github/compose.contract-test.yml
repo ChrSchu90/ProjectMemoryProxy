@@ -1,0 +1,29 @@
+services:
+  test-basic-memory:
+    image: ghcr.io/basicmachines-co/basic-memory:latest
+    environment:
+      BASIC_MEMORY_FORCE_LOCAL: true
+      BASIC_MEMORY_NO_PROMOS: true
+      BASIC_MEMORY_DEFAULT_PROJECT: main
+      BASIC_MEMORY_INDEX_CHANGES: true
+      BASIC_MEMORY_INDEX_DELAY: 1000
+      BASIC_MEMORY_SEMANTIC_SEARCH_ENABLED: true
+      BASIC_MEMORY_RERANKER_ENABLED: true
+      BASIC_MEMORY_LOG_LEVEL: INFO
+    tmpfs:
+      - /app/data:uid=1000,gid=1000,mode=0770
+      - /home/appuser/.basic-memory:uid=1000,gid=1000,mode=0770
+    ports:
+      - "${PORT_MEMORY_MCP_EXT:-54799}:8000"
+    command:
+      - basic-memory
+      - mcp
+      - --transport
+      - streamable-http
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+      - --path
+      - /mcp
+    mem_limit: 512m

@@ -1,0 +1,249 @@
+name: Basic Memory Contract Monitor
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 17 * * *' # Every Friday at 17:00 UTC
+  push:
+    branches:
+      - main
+    paths:
+      - 'source/ProjectMemoryProxy.BasicMemory/**'
+      - 'source/ProjectMemoryProxy.Core/**'
+      - 'tests/ProjectMemoryProxy.BasicMemory.Tests/**'
+      - '.github/compose.contract-test.yml'
+      - '.github/workflows/contract-test.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: contract-test-monitor
+  cancel-in-progress: true
+
+env:
+  COMPOSE_FILE: .github/compose.contract-test.yml
+  CONTRACT_TEST_PROJECT: tests/ProjectMemoryProxy.BasicMemory.Tests/ProjectMemoryProxy.BasicMemory.Tests.csproj
+  DIAGNOSTICS_DIR: artifacts/contract-test
+  PORT_MEMORY_MCP_EXT: '54799'
+  PROJECTMEMORYPROXY_TEST_BASIC_MEMORY_ENDPOINT: http://127.0.0.1:54799/mcp
+
+jobs:
+  contract:
+    name: Latest Basic Memory contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: .NET Setup
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: |
+            10.0.x
+
+      - name: Capture runner and repository metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$DIAGNOSTICS_DIR"
+
+          {
+            echo "Repository: $GITHUB_REPOSITORY"
+            echo "Commit: $GITHUB_SHA"
+            echo "Ref: $GITHUB_REF"
+            echo "Event: $GITHUB_EVENT_NAME"
+            echo "Runner OS: $RUNNER_OS"
+            echo "Runner architecture: $RUNNER_ARCH"
+            echo "Runner image OS: ${ImageOS:-<unknown>}"
+            echo "Runner image version: ${ImageVersion:-<unknown>}"
+            echo "Run ID: $GITHUB_RUN_ID"
+            echo "Run attempt: $GITHUB_RUN_ATTEMPT"
+            echo "Run URL: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo
+
+            echo "git status"
+            git status --short --branch
+            echo
+
+            echo "git log -1"
+            git log -1 --oneline --decorate
+            echo
+
+            echo "dotnet --info"
+            dotnet --info
+            echo
+
+            echo "docker version"
+            docker version
+            echo
+
+            echo "docker compose version"
+            docker compose version
+          } | tee "$DIAGNOSTICS_DIR/run-environment.txt"
+
+          {
+            echo "## Basic Memory Contract Monitor"
+            echo
+            echo "- Repository: \`$GITHUB_REPOSITORY\`"
+            echo "- Commit: \`$GITHUB_SHA\`"
+            echo "- Ref: \`$GITHUB_REF\`"
+            echo "- Event: \`$GITHUB_EVENT_NAME\`"
+            echo "- Endpoint: \`$PROJECTMEMORYPROXY_TEST_BASIC_MEMORY_ENDPOINT\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Render Basic Memory Compose configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker compose -f "$COMPOSE_FILE" config \
+            | tee "$DIAGNOSTICS_DIR/docker-compose-config.yml"
+
+      - name: Pull latest Basic Memory image
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          docker compose -f "$COMPOSE_FILE" pull
+
+          image="ghcr.io/basicmachines-co/basic-memory:latest"
+
+          docker image inspect "$image" \
+            > "$DIAGNOSTICS_DIR/basic-memory-image-inspect.json"
+
+          {
+            echo "Configured image: $image"
+            echo "Image ID: $(docker image inspect "$image" --format '{{.Id}}')"
+            echo "Repo digests: $(docker image inspect "$image" --format '{{json .RepoDigests}}')"
+            echo "Created: $(docker image inspect "$image" --format '{{.Created}}')"
+          } | tee "$DIAGNOSTICS_DIR/basic-memory-image.txt"
+
+          {
+            echo "- Basic Memory image: \`$image\`"
+            echo "- Image ID: \`$(docker image inspect "$image" --format '{{.Id}}')\`"
+            echo "- Repo digests: \`$(docker image inspect "$image" --format '{{json .RepoDigests}}')\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Start Basic Memory
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          docker compose -f "$COMPOSE_FILE" up -d --no-build
+
+          docker compose -f "$COMPOSE_FILE" ps -a \
+            | tee "$DIAGNOSTICS_DIR/docker-compose-ps-startup.txt"
+
+      - name: Wait for Basic Memory MCP
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          for attempt in {1..180}; do
+            if (echo > "/dev/tcp/127.0.0.1/$PORT_MEMORY_MCP_EXT") >/dev/null 2>&1; then
+              echo "Basic Memory MCP is reachable after $attempt attempt(s)."
+              exit 0
+            fi
+
+            sleep 1
+          done
+
+          echo "Basic Memory MCP did not become reachable." >&2
+          docker compose -f "$COMPOSE_FILE" ps -a || true
+          docker compose -f "$COMPOSE_FILE" logs --no-color --timestamps || true
+          exit 1
+
+      - name: Capture Basic Memory runtime metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          container_id="$(docker compose -f "$COMPOSE_FILE" ps -q test-basic-memory)"
+
+          {
+            echo "Container ID: $container_id"
+            echo
+
+            echo "docker compose ps"
+            docker compose -f "$COMPOSE_FILE" ps -a
+            echo
+
+            echo "docker compose images"
+            docker compose -f "$COMPOSE_FILE" images
+            echo
+
+            echo "basic-memory --version"
+            docker compose -f "$COMPOSE_FILE" exec -T \
+              test-basic-memory basic-memory --version || true
+            echo
+
+            echo "docker stats"
+            docker stats --no-stream "$container_id" || true
+          } | tee "$DIAGNOSTICS_DIR/basic-memory-runtime.txt"
+
+          docker inspect "$container_id" \
+            > "$DIAGNOSTICS_DIR/basic-memory-container-inspect.json"
+
+      - name: .NET Restore
+        run: dotnet restore "$CONTRACT_TEST_PROJECT" --verbosity n
+
+      - name: .NET Build
+        run: dotnet build "$CONTRACT_TEST_PROJECT" --verbosity d --no-restore --configuration Release
+
+      - name: Run Basic Memory contract tests
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          dotnet test "$CONTRACT_TEST_PROJECT" \
+            --configuration Release \
+            --no-restore \
+            --no-build \
+            --logger "console;verbosity=detailed" \
+            --logger "trx;LogFileName=basic-memory-contract.trx" \
+            --results-directory "$DIAGNOSTICS_DIR/TestResults" \
+            2>&1 | tee "$DIAGNOSTICS_DIR/test-console.log"
+
+      - name: Collect Basic Memory diagnostics
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          mkdir -p "$DIAGNOSTICS_DIR"
+
+          docker compose -f "$COMPOSE_FILE" ps -a \
+            > "$DIAGNOSTICS_DIR/docker-compose-ps-final.txt" 2>&1
+
+          docker compose -f "$COMPOSE_FILE" logs \
+            --no-color \
+            --timestamps \
+            > "$DIAGNOSTICS_DIR/basic-memory.log" 2>&1
+
+          container_id="$(docker compose -f "$COMPOSE_FILE" ps -q test-basic-memory 2>/dev/null)"
+
+          if [[ -n "$container_id" ]]; then
+            docker inspect "$container_id" \
+              > "$DIAGNOSTICS_DIR/basic-memory-container-inspect-final.json" 2>&1
+
+            docker stats --no-stream "$container_id" \
+              > "$DIAGNOSTICS_DIR/basic-memory-stats-final.txt" 2>&1
+          fi
+
+      - name: Upload contract diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: basic-memory-contract-diagnostics-${{ github.run_id }}
+          path: artifacts/basic-memory-contract/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Stop Basic Memory
+        if: always()
+        shell: bash
+        run: docker compose -f "$COMPOSE_FILE" down -v --remove-orphans || true
