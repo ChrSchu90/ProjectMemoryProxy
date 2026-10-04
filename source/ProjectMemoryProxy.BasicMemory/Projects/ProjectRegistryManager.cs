@@ -2,6 +2,7 @@ namespace ProjectMemoryProxy.BasicMemory.Projects;
 
 using ProjectMemoryProxy.Core.Routing;
 using System;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -17,6 +18,7 @@ public sealed class ProjectRegistryManager
     #region Private Fields
 
     private readonly IBasicMemoryProjectDirectory _projectDirectory;
+    private readonly IBasicMemoryProjectLifecycle _projectLifecycle;
     private readonly IProjectRegistry _projectRegistry;
 
     #endregion
@@ -24,13 +26,15 @@ public sealed class ProjectRegistryManager
     #region Constructors
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="ProjectRegistryManager"/> class.
+    /// Initializes a new instance of the <see cref="ProjectRegistryManager" /> class.
     /// </summary>
     /// <param name="projectDirectory">The Basic Memory project directory.</param>
+    /// <param name="projectLifecycle">The project lifecycle.</param>
     /// <param name="projectRegistry">The ProjectMemoryProxy routing registry.</param>
-    public ProjectRegistryManager(IBasicMemoryProjectDirectory projectDirectory, IProjectRegistry projectRegistry)
+    public ProjectRegistryManager(IBasicMemoryProjectDirectory projectDirectory, IBasicMemoryProjectLifecycle projectLifecycle, IProjectRegistry projectRegistry)
     {
         _projectDirectory = projectDirectory ?? throw new ArgumentNullException(nameof(projectDirectory));
+        _projectLifecycle = projectLifecycle ?? throw new ArgumentNullException(nameof(projectLifecycle));
         _projectRegistry = projectRegistry ?? throw new ArgumentNullException(nameof(projectRegistry));
     }
 
@@ -41,6 +45,46 @@ public sealed class ProjectRegistryManager
     #endregion
 
     #region Public Methods
+
+    /// <summary>
+    /// Creates a local Basic Memory project and registers its validated routing.
+    /// </summary>
+    /// <param name="memoryProjectName">The Basic Memory project name.</param>
+    /// <param name="memoryProjectPath">The absolute local Basic Memory project path.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The project creation and registration result.</returns>
+    public async Task<ProjectCreationResult> CreateProjectAsync(string memoryProjectName, string memoryProjectPath, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(memoryProjectName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(memoryProjectPath);
+        if (!Path.IsPathFullyQualified(memoryProjectPath))
+            throw new ArgumentException("The Basic Memory project path must be fully qualified.", nameof(memoryProjectPath));
+
+        var normalizedProjectPath = NormalizeProjectPath(memoryProjectPath);
+        var existingRouting = await _projectRegistry.FindByMemoryProjectNameAsync(memoryProjectName, cancellationToken).ConfigureAwait(false);
+        if (existingRouting != null)
+        {
+            var existingValidation = await _projectDirectory.ValidateAsync(existingRouting.MemoryProjectId, existingRouting.MemoryProjectName, cancellationToken).ConfigureAwait(false);
+            if (existingValidation.Status == BasicMemoryProjectValidationStatus.ExactMatch)
+                return new ProjectCreationResult(ProjectCreationStatus.AlreadyRegistered, existingRouting);
+
+            return new ProjectCreationResult(MapCreationValidationStatus(existingValidation.Status), null);
+        }
+
+        var creation = await _projectLifecycle.CreateAsync(memoryProjectName, normalizedProjectPath, cancellationToken).ConfigureAwait(false);
+        if (!string.Equals(creation.Project.MemoryProjectName, memoryProjectName, StringComparison.Ordinal))
+            return new ProjectCreationResult(ProjectCreationStatus.BasicMemoryProjectNameMismatch, null);
+
+        if (creation.Status == BasicMemoryProjectCreationStatus.AlreadyExists && !ProjectPathsEqual(normalizedProjectPath, creation.ProjectPath))
+            return new ProjectCreationResult(ProjectCreationStatus.BasicMemoryProjectPathMismatch, null);
+
+        var validation = await _projectDirectory.ValidateAsync(creation.Project.MemoryProjectId, creation.Project.MemoryProjectName, cancellationToken).ConfigureAwait(false);
+        if (validation.Status != BasicMemoryProjectValidationStatus.ExactMatch)
+            return new ProjectCreationResult(MapCreationValidationStatus(validation.Status), null);
+
+        var registration = await RegisterValidatedProjectAsync(creation.Project.MemoryProjectId, creation.Project.MemoryProjectName, cancellationToken).ConfigureAwait(false);
+        return MapCreationRegistrationResult(creation.Status, registration);
+    }
 
     /// <summary>
     /// Registers an existing Basic Memory project after validating its exact UUID/name identity.
@@ -58,25 +102,7 @@ public sealed class ProjectRegistryManager
         if (validation.Status != BasicMemoryProjectValidationStatus.ExactMatch)
             return new ProjectRegistrationResult(MapValidationStatus(validation.Status), null);
 
-        var existing = await GetExistingRegistrationResultAsync(memoryProjectId, memoryProjectName, cancellationToken).ConfigureAwait(false);
-        if (existing != null)
-            return existing;
-
-        try
-        {
-            var routing = await _projectRegistry
-                .CreateAsync(memoryProjectId, memoryProjectName, Status.Active, cancellationToken)
-                .ConfigureAwait(false);
-
-            return new ProjectRegistrationResult(ProjectRegistrationStatus.Registered, routing);
-        }
-        catch (ProjectRegistryConflictException)
-        {
-            // Another writer may have inserted a matching or conflicting routing after the initial reads.
-            // Re-read persisted state rather than relying on process-local synchronization.
-            return await GetExistingRegistrationResultAsync(memoryProjectId, memoryProjectName, cancellationToken).ConfigureAwait(false)
-                ?? new ProjectRegistrationResult(ProjectRegistrationStatus.RegistryWriteConflict, null);
-        }
+        return await RegisterValidatedProjectAsync(memoryProjectId, memoryProjectName, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -310,6 +336,64 @@ public sealed class ProjectRegistryManager
             BasicMemoryProjectValidationStatus.IdentityConflict => ProjectRoutingStatusChangeStatus.BasicMemoryProjectIdentityConflict,
             _ => ProjectRoutingStatusChangeStatus.BasicMemoryValidationFailed
         };
+    }
+
+    private async Task<ProjectRegistrationResult> RegisterValidatedProjectAsync(Guid memoryProjectId, string memoryProjectName, CancellationToken cancellationToken)
+    {
+        var existing = await GetExistingRegistrationResultAsync(memoryProjectId, memoryProjectName, cancellationToken).ConfigureAwait(false);
+        if (existing != null)
+            return existing;
+
+        try
+        {
+            var routing = await _projectRegistry.CreateAsync(memoryProjectId, memoryProjectName, Status.Active, cancellationToken).ConfigureAwait(false);
+            return new ProjectRegistrationResult(ProjectRegistrationStatus.Registered, routing);
+        }
+        catch (ProjectRegistryConflictException)
+        {
+            return await GetExistingRegistrationResultAsync(memoryProjectId, memoryProjectName, cancellationToken).ConfigureAwait(false) ??
+                   new ProjectRegistrationResult(ProjectRegistrationStatus.RegistryWriteConflict, null);
+        }
+    }
+
+    private static ProjectCreationStatus MapCreationValidationStatus(BasicMemoryProjectValidationStatus status)
+    {
+        return status switch
+        {
+            BasicMemoryProjectValidationStatus.NotFound => ProjectCreationStatus.BasicMemoryProjectNotFound,
+            BasicMemoryProjectValidationStatus.NameMismatch => ProjectCreationStatus.BasicMemoryProjectNameMismatch,
+            BasicMemoryProjectValidationStatus.IdMismatch => ProjectCreationStatus.BasicMemoryProjectIdMismatch,
+            BasicMemoryProjectValidationStatus.IdentityConflict => ProjectCreationStatus.BasicMemoryProjectIdentityConflict,
+            _ => ProjectCreationStatus.BasicMemoryValidationFailed
+        };
+    }
+
+    private static ProjectCreationResult MapCreationRegistrationResult(BasicMemoryProjectCreationStatus creationStatus, ProjectRegistrationResult registration)
+    {
+        return registration.Status switch
+        {
+            ProjectRegistrationStatus.Registered => new ProjectCreationResult(creationStatus == BasicMemoryProjectCreationStatus.Created ? ProjectCreationStatus.Created : ProjectCreationStatus.Recovered, registration.Routing),
+            ProjectRegistrationStatus.AlreadyRegistered => new ProjectCreationResult(ProjectCreationStatus.AlreadyRegistered, registration.Routing),
+            ProjectRegistrationStatus.RegistryProjectNameMismatch => new ProjectCreationResult(ProjectCreationStatus.RegistryProjectNameMismatch, null),
+            ProjectRegistrationStatus.RegistryProjectIdMismatch => new ProjectCreationResult(ProjectCreationStatus.RegistryProjectIdMismatch, null),
+            ProjectRegistrationStatus.RegistryProjectIdentityConflict => new ProjectCreationResult(ProjectCreationStatus.RegistryProjectIdentityConflict, null),
+            ProjectRegistrationStatus.RegistryWriteConflict => new ProjectCreationResult(ProjectCreationStatus.RegistryWriteConflict, null),
+            _ => throw new InvalidOperationException($"Unexpected validated project registration status '{registration.Status}'.")
+        };
+    }
+
+    private static string NormalizeProjectPath(string projectPath)
+    {
+        return Path.TrimEndingDirectorySeparator(Path.GetFullPath(projectPath));
+    }
+
+    private static bool ProjectPathsEqual(string expectedProjectPath, string actualProjectPath)
+    {
+        if (!Path.IsPathFullyQualified(actualProjectPath))
+            return false;
+
+        var normalizedActualPath = NormalizeProjectPath(actualProjectPath);
+        return string.Equals(expectedProjectPath, normalizedActualPath, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
     }
 
     #endregion

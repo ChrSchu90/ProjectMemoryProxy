@@ -47,6 +47,7 @@ public static class BasicMemoryServiceCollectionExtensions
         services.AddSingleton<IBasicMemoryClient, BasicMemoryClient>();
         services.AddSingleton<BasicMemoryToolCatalog>();
         services.AddSingleton<IBasicMemoryProjectDirectory, BasicMemoryProjectDirectory>();
+        services.AddSingleton<IBasicMemoryProjectLifecycle, BasicMemoryProjectLifecycle>();
         services.AddSingleton<ProjectRegistryManager>();
         services.AddSingleton<BasicMemoryMirroredToolCatalog>();
         services.AddSingleton<BasicMemoryMirroredMcpServerToolRegistry>();

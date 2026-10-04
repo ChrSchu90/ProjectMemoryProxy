@@ -76,6 +76,7 @@ public sealed class BasicMemoryServiceCollectionExtensionsTests
         Assert.IsNotNull(serviceProvider.GetRequiredService<BasicMemoryToolCatalog>());
         Assert.IsNotNull(serviceProvider.GetRequiredService<BasicMemoryMirroredToolCatalog>());
         Assert.IsNotNull(serviceProvider.GetRequiredService<IBasicMemoryProjectDirectory>());
+        Assert.IsNotNull(serviceProvider.GetRequiredService<IBasicMemoryProjectLifecycle>());
         Assert.IsNotNull(serviceProvider.GetRequiredService<ProjectRegistryManager>());
     }
 

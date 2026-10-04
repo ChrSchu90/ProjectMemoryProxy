@@ -5,6 +5,7 @@ using ProjectMemoryProxy.BasicMemory.Projects;
 using ProjectMemoryProxy.Core.Routing;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -20,6 +21,8 @@ public sealed class ProjectRegistryManagerTests
     private static readonly Guid ProjectBId = Guid.Parse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
     private static readonly ContextId GitContext = ParseContextId("git:github.com/ChrSchu90/ProjectMemoryProxy");
     private static readonly ContextId ChatGptContext = ParseContextId("chatgpt-project:chatty-mcp-and-aiharborvm");
+    private static readonly string ProjectAPath = Path.Combine(Path.GetTempPath(), "project-memory-proxy-tests", "project-a");
+    private static readonly string ProjectBPath = Path.Combine(Path.GetTempPath(), "project-memory-proxy-tests", "project-b");
 
     #endregion
 
@@ -46,7 +49,7 @@ public sealed class ProjectRegistryManagerTests
     {
         var projectDirectory = CreateProjectDirectory(BasicMemoryProjectValidationStatus.ExactMatch);
         var projectRegistry = new StubProjectRegistry();
-        var manager = new ProjectRegistryManager(projectDirectory, projectRegistry);
+        var manager = CreateManager(projectDirectory, projectRegistry);
 
         var result = await manager.RegisterExistingProjectAsync(ProjectAId, "project-a");
         Assert.AreEqual(ProjectRegistrationStatus.Registered, result.Status);
@@ -80,7 +83,7 @@ public sealed class ProjectRegistryManagerTests
             ProjectByName = existingRouting
         };
 
-        var manager = new ProjectRegistryManager(projectDirectory, projectRegistry);
+        var manager = CreateManager(projectDirectory, projectRegistry);
         var result = await manager.RegisterExistingProjectAsync(ProjectAId, "project-a");
         Assert.AreEqual(ProjectRegistrationStatus.AlreadyRegistered, result.Status);
         Assert.AreEqual(existingRouting, result.Routing);
@@ -145,7 +148,7 @@ public sealed class ProjectRegistryManagerTests
             ProjectById = new ProjectRouting(ProjectAId, "different-project", Status.Active)
         };
 
-        var manager = new ProjectRegistryManager(projectDirectory, projectRegistry);
+        var manager = CreateManager(projectDirectory, projectRegistry);
         var result = await manager.RegisterExistingProjectAsync(ProjectAId, "project-a");
         Assert.AreEqual(ProjectRegistrationStatus.RegistryProjectNameMismatch, result.Status);
         Assert.IsNull(result.Routing);
@@ -164,7 +167,7 @@ public sealed class ProjectRegistryManagerTests
             ProjectByName = new ProjectRouting(ProjectBId, "project-a", Status.Active)
         };
 
-        var manager = new ProjectRegistryManager(projectDirectory, projectRegistry);
+        var manager = CreateManager(projectDirectory, projectRegistry);
         var result = await manager.RegisterExistingProjectAsync(ProjectAId, "project-a");
         Assert.AreEqual(ProjectRegistrationStatus.RegistryProjectIdMismatch, result.Status);
         Assert.IsNull(result.Routing);
@@ -184,7 +187,7 @@ public sealed class ProjectRegistryManagerTests
             ProjectByName = new ProjectRouting(ProjectBId, "project-a", Status.Active)
         };
 
-        var manager = new ProjectRegistryManager(projectDirectory, projectRegistry);
+        var manager = CreateManager(projectDirectory, projectRegistry);
         var result = await manager.RegisterExistingProjectAsync(ProjectAId, "project-a");
         Assert.AreEqual(ProjectRegistrationStatus.RegistryProjectIdentityConflict, result.Status);
         Assert.IsNull(result.Routing);
@@ -207,7 +210,7 @@ public sealed class ProjectRegistryManagerTests
             throw new ProjectRegistryConflictException("A concurrent writer created the routing.");
         };
 
-        var manager = new ProjectRegistryManager(projectDirectory, projectRegistry);
+        var manager = CreateManager(projectDirectory, projectRegistry);
         var result = await manager.RegisterExistingProjectAsync(ProjectAId, "project-a");
         Assert.AreEqual(ProjectRegistrationStatus.AlreadyRegistered, result.Status);
         Assert.AreEqual(exactRouting, result.Routing);
@@ -231,7 +234,7 @@ public sealed class ProjectRegistryManagerTests
                 throw new ProjectRegistryConflictException("A concurrent registry write failed.")
         };
 
-        var manager = new ProjectRegistryManager(projectDirectory, projectRegistry);
+        var manager = CreateManager(projectDirectory, projectRegistry);
         var result = await manager.RegisterExistingProjectAsync(ProjectAId, "project-a");
         Assert.AreEqual(ProjectRegistrationStatus.RegistryWriteConflict, result.Status);
         Assert.IsNull(result.Routing);
@@ -248,7 +251,7 @@ public sealed class ProjectRegistryManagerTests
     {
         var projectDirectory = CreateProjectDirectory(BasicMemoryProjectValidationStatus.ExactMatch);
         var projectRegistry = new StubProjectRegistry();
-        var manager = new ProjectRegistryManager(projectDirectory, projectRegistry);
+        var manager = CreateManager(projectDirectory, projectRegistry);
         await Assert.ThrowsAsync<ArgumentException>(() => manager.RegisterExistingProjectAsync(Guid.Empty, "project-a"));
         Assert.AreEqual(0, projectDirectory.ValidateCallCount);
         Assert.AreEqual(0, projectRegistry.TotalCallCount);
@@ -262,7 +265,7 @@ public sealed class ProjectRegistryManagerTests
     {
         var projectDirectory = CreateProjectDirectory(BasicMemoryProjectValidationStatus.ExactMatch);
         var projectRegistry = new StubProjectRegistry();
-        var manager = new ProjectRegistryManager(projectDirectory, projectRegistry);
+        var manager = CreateManager(projectDirectory, projectRegistry);
         await Assert.ThrowsAsync<ArgumentException>(() => manager.RegisterExistingProjectAsync(ProjectAId, " "));
         Assert.AreEqual(0, projectDirectory.ValidateCallCount);
         Assert.AreEqual(0, projectRegistry.TotalCallCount);
@@ -276,7 +279,7 @@ public sealed class ProjectRegistryManagerTests
     {
         var projectDirectory = CreateProjectDirectory(BasicMemoryProjectValidationStatus.ExactMatch);
         var projectRegistry = new StubProjectRegistry { ProjectById = new ProjectRouting(ProjectAId, "project-a", Status.Active) };
-        var manager = new ProjectRegistryManager(projectDirectory, projectRegistry);
+        var manager = CreateManager(projectDirectory, projectRegistry);
 
         var result = await manager.BindContextAsync(GitContext, ProjectAId);
         Assert.AreEqual(ContextBindingRegistrationStatus.Bound, result.Status);
@@ -304,7 +307,7 @@ public sealed class ProjectRegistryManagerTests
         var existingBinding = new ContextBinding(GitContext, ProjectAId, Status.Inactive);
         var projectDirectory = CreateProjectDirectory(BasicMemoryProjectValidationStatus.ExactMatch);
         var projectRegistry = new StubProjectRegistry { ProjectById = new ProjectRouting(ProjectAId, "project-a", Status.Active), Binding = existingBinding };
-        var manager = new ProjectRegistryManager(projectDirectory, projectRegistry);
+        var manager = CreateManager(projectDirectory, projectRegistry);
 
         var result = await manager.BindContextAsync(GitContext, ProjectAId);
         Assert.AreEqual(ContextBindingRegistrationStatus.AlreadyBound, result.Status);
@@ -321,7 +324,7 @@ public sealed class ProjectRegistryManagerTests
     {
         var projectDirectory = CreateProjectDirectory(BasicMemoryProjectValidationStatus.ExactMatch);
         var projectRegistry = new StubProjectRegistry();
-        var manager = new ProjectRegistryManager(projectDirectory, projectRegistry);
+        var manager = CreateManager(projectDirectory, projectRegistry);
 
         var result = await manager.BindContextAsync(GitContext, ProjectAId);
         Assert.AreEqual(ContextBindingRegistrationStatus.ProjectRoutingNotFound, result.Status);
@@ -339,7 +342,7 @@ public sealed class ProjectRegistryManagerTests
     {
         var projectDirectory = CreateProjectDirectory(BasicMemoryProjectValidationStatus.ExactMatch);
         var projectRegistry = new StubProjectRegistry { ProjectById = new ProjectRouting(ProjectAId, "project-a", Status.Inactive) };
-        var manager = new ProjectRegistryManager(projectDirectory, projectRegistry);
+        var manager = CreateManager(projectDirectory, projectRegistry);
 
         var result = await manager.BindContextAsync(GitContext, ProjectAId);
         Assert.AreEqual(ContextBindingRegistrationStatus.ProjectRoutingInactive, result.Status);
@@ -361,7 +364,7 @@ public sealed class ProjectRegistryManagerTests
             Binding = new ContextBinding(GitContext, ProjectBId, Status.Active)
         };
 
-        var manager = new ProjectRegistryManager(projectDirectory, projectRegistry);
+        var manager = CreateManager(projectDirectory, projectRegistry);
         var result = await manager.BindContextAsync(GitContext, ProjectAId);
         Assert.AreEqual(ContextBindingRegistrationStatus.ContextAlreadyBoundToDifferentProject, result.Status);
         Assert.IsNull(result.Binding);
@@ -383,7 +386,7 @@ public sealed class ProjectRegistryManagerTests
             throw new ProjectRegistryConflictException("A concurrent writer created the binding.");
         };
 
-        var manager = new ProjectRegistryManager(projectDirectory, projectRegistry);
+        var manager = CreateManager(projectDirectory, projectRegistry);
         var result = await manager.BindContextAsync(GitContext, ProjectAId);
         Assert.AreEqual(ContextBindingRegistrationStatus.AlreadyBound, result.Status);
         Assert.AreEqual(concurrentBinding, result.Binding);
@@ -407,7 +410,7 @@ public sealed class ProjectRegistryManagerTests
                 throw new ProjectRegistryConflictException("A concurrent binding write failed.")
         };
 
-        var manager = new ProjectRegistryManager(projectDirectory, projectRegistry);
+        var manager = CreateManager(projectDirectory, projectRegistry);
         var result = await manager.BindContextAsync(GitContext, ProjectAId);
         Assert.AreEqual(ContextBindingRegistrationStatus.RegistryWriteConflict, result.Status);
 
@@ -427,7 +430,7 @@ public sealed class ProjectRegistryManagerTests
 
         var projectRegistry = new StubProjectRegistry();
 
-        var manager = new ProjectRegistryManager(projectDirectory, projectRegistry);
+        var manager = CreateManager(projectDirectory, projectRegistry);
         await Assert.ThrowsAsync<ArgumentException>(() => manager.BindContextAsync(GitContext, Guid.Empty));
         Assert.AreEqual(0, projectRegistry.TotalCallCount);
     }
@@ -440,7 +443,7 @@ public sealed class ProjectRegistryManagerTests
     {
         var projectDirectory = CreateProjectDirectory(BasicMemoryProjectValidationStatus.ExactMatch);
         var projectRegistry = new StubProjectRegistry { ProjectById = new ProjectRouting(ProjectAId, "project-a", Status.Active) };
-        var manager = new ProjectRegistryManager(projectDirectory, projectRegistry);
+        var manager = CreateManager(projectDirectory, projectRegistry);
         var result = await manager.DeactivateProjectAsync(ProjectAId);
         Assert.AreEqual(ProjectRoutingStatusChangeStatus.Updated, result.Status);
 
@@ -465,7 +468,7 @@ public sealed class ProjectRegistryManagerTests
         var projectDirectory = CreateProjectDirectory(BasicMemoryProjectValidationStatus.ExactMatch);
         var existing = new ProjectRouting(ProjectAId, "project-a", Status.Inactive);
         var projectRegistry = new StubProjectRegistry { ProjectById = existing };
-        var manager = new ProjectRegistryManager(projectDirectory, projectRegistry);
+        var manager = CreateManager(projectDirectory, projectRegistry);
 
         var result = await manager.DeactivateProjectAsync(ProjectAId);
         Assert.AreEqual(ProjectRoutingStatusChangeStatus.AlreadyInRequestedState, result.Status);
@@ -482,7 +485,7 @@ public sealed class ProjectRegistryManagerTests
     {
         var projectDirectory = CreateProjectDirectory(BasicMemoryProjectValidationStatus.ExactMatch);
         var projectRegistry = new StubProjectRegistry { ProjectById = new ProjectRouting(ProjectAId, "project-a", Status.Inactive) };
-        var manager = new ProjectRegistryManager(projectDirectory, projectRegistry);
+        var manager = CreateManager(projectDirectory, projectRegistry);
 
         var result = await manager.ReactivateProjectAsync(ProjectAId);
         Assert.AreEqual(ProjectRoutingStatusChangeStatus.Updated, result.Status);
@@ -511,7 +514,7 @@ public sealed class ProjectRegistryManagerTests
             ProjectById = new ProjectRouting(ProjectAId, "project-a", Status.Inactive)
         };
 
-        var manager = new ProjectRegistryManager(projectDirectory, projectRegistry);
+        var manager = CreateManager(projectDirectory, projectRegistry);
         var result = await manager.ReactivateProjectAsync(ProjectAId);
         Assert.AreEqual(ProjectRoutingStatusChangeStatus.BasicMemoryProjectNotFound, result.Status);
         Assert.IsNull(result.Routing);
@@ -560,7 +563,7 @@ public sealed class ProjectRegistryManagerTests
             return Task.FromResult(false);
         };
 
-        var manager = new ProjectRegistryManager(projectDirectory, projectRegistry);
+        var manager = CreateManager(projectDirectory, projectRegistry);
         var result = await manager.DeactivateProjectAsync(ProjectAId);
         Assert.AreEqual(ProjectRoutingStatusChangeStatus.AlreadyInRequestedState, result.Status);
         Assert.IsNotNull(result.Routing);
@@ -582,7 +585,7 @@ public sealed class ProjectRegistryManagerTests
             TryUpdateProjectStatusHandler = (memoryProjectId, expectedStatus, newStatus, cancellationToken) => Task.FromResult(false)
         };
 
-        var manager = new ProjectRegistryManager(projectDirectory, projectRegistry);
+        var manager = CreateManager(projectDirectory, projectRegistry);
         var result = await manager.DeactivateProjectAsync(ProjectAId);
         Assert.AreEqual(ProjectRoutingStatusChangeStatus.RegistryWriteConflict, result.Status);
         Assert.IsNull(result.Routing);
@@ -597,7 +600,7 @@ public sealed class ProjectRegistryManagerTests
     {
         var projectDirectory = CreateProjectDirectory(BasicMemoryProjectValidationStatus.ExactMatch);
         var projectRegistry = new StubProjectRegistry { Binding = new ContextBinding(GitContext, ProjectAId, Status.Active) };
-        var manager = new ProjectRegistryManager(projectDirectory, projectRegistry);
+        var manager = CreateManager(projectDirectory, projectRegistry);
         var result = await manager.DeactivateContextAsync(GitContext);
         Assert.AreEqual(ContextBindingStatusChangeStatus.Updated, result.Status);
 
@@ -624,7 +627,7 @@ public sealed class ProjectRegistryManagerTests
             ProjectById = new ProjectRouting(ProjectAId, "project-a", Status.Active)
         };
 
-        var manager = new ProjectRegistryManager(projectDirectory, projectRegistry);
+        var manager = CreateManager(projectDirectory, projectRegistry);
         var result = await manager.ReactivateContextAsync(GitContext);
         Assert.AreEqual(ContextBindingStatusChangeStatus.Updated, result.Status);
         Assert.IsNotNull(result.Binding);
@@ -648,7 +651,7 @@ public sealed class ProjectRegistryManagerTests
             ProjectById = new ProjectRouting(ProjectAId, "project-a", Status.Inactive)
         };
 
-        var manager = new ProjectRegistryManager(projectDirectory, projectRegistry);
+        var manager = CreateManager(projectDirectory, projectRegistry);
         var result = await manager.ReactivateContextAsync(GitContext);
         Assert.AreEqual(ContextBindingStatusChangeStatus.ProjectRoutingInactive, result.Status);
         Assert.IsNull(result.Binding);
@@ -667,7 +670,7 @@ public sealed class ProjectRegistryManagerTests
             Binding = new ContextBinding(GitContext, ProjectAId, Status.Inactive)
         };
 
-        var manager = new ProjectRegistryManager(projectDirectory, projectRegistry);
+        var manager = CreateManager(projectDirectory, projectRegistry);
         var result = await manager.ReactivateContextAsync(GitContext);
         Assert.AreEqual(ContextBindingStatusChangeStatus.ProjectRoutingNotFound, result.Status);
         Assert.IsNull(result.Binding);
@@ -693,7 +696,7 @@ public sealed class ProjectRegistryManagerTests
             return Task.FromResult(false);
         };
 
-        var manager = new ProjectRegistryManager(projectDirectory, projectRegistry);
+        var manager = CreateManager(projectDirectory, projectRegistry);
         var result = await manager.ReactivateContextAsync(GitContext);
         Assert.AreEqual(ContextBindingStatusChangeStatus.AlreadyInRequestedState, result.Status);
         Assert.IsNotNull(result.Binding);
@@ -716,7 +719,7 @@ public sealed class ProjectRegistryManagerTests
             TryUpdateBindingStatusHandler = (contextId, expectedStatus, newStatus, cancellationToken) => Task.FromResult(false)
         };
 
-        var manager = new ProjectRegistryManager(projectDirectory, projectRegistry);
+        var manager = CreateManager(projectDirectory, projectRegistry);
         var result = await manager.ReactivateContextAsync(GitContext);
         Assert.AreEqual(ContextBindingStatusChangeStatus.RegistryWriteConflict, result.Status);
         Assert.IsNull(result.Binding);
@@ -731,7 +734,7 @@ public sealed class ProjectRegistryManagerTests
     {
         var projectDirectory = CreateProjectDirectory(BasicMemoryProjectValidationStatus.ExactMatch);
         var projectRegistry = new StubProjectRegistry { Binding = new ContextBinding(GitContext, ProjectAId, Status.Inactive) };
-        var manager = new ProjectRegistryManager(projectDirectory, projectRegistry);
+        var manager = CreateManager(projectDirectory, projectRegistry);
 
         var result = await manager.UnbindContextAsync(GitContext);
         Assert.AreEqual(ContextBindingRemovalStatus.Unbound, result.Status);
@@ -754,7 +757,7 @@ public sealed class ProjectRegistryManagerTests
             TryRemoveBindingHandler = (contextId, cancellationToken) => Task.FromResult(false)
         };
 
-        var manager = new ProjectRegistryManager(projectDirectory, projectRegistry);
+        var manager = CreateManager(projectDirectory, projectRegistry);
         var result = await manager.UnbindContextAsync(GitContext);
         Assert.AreEqual(ContextBindingRemovalStatus.AlreadyUnbound, result.Status);
         Assert.AreEqual(1, projectRegistry.TryRemoveBindingCallCount);
@@ -775,7 +778,7 @@ public sealed class ProjectRegistryManagerTests
             return Task.FromResult(false);
         };
 
-        var manager = new ProjectRegistryManager(projectDirectory, projectRegistry);
+        var manager = CreateManager(projectDirectory, projectRegistry);
         var result = await manager.UnbindContextAsync(GitContext);
         Assert.AreEqual(ContextBindingRemovalStatus.AlreadyUnbound, result.Status);
         Assert.AreEqual(1, projectRegistry.TryRemoveBindingCallCount);
@@ -795,11 +798,278 @@ public sealed class ProjectRegistryManagerTests
             TryRemoveBindingHandler = (contextId, cancellationToken) => Task.FromResult(false)
         };
 
-        var manager = new ProjectRegistryManager(projectDirectory, projectRegistry);
+        var manager = CreateManager(projectDirectory, projectRegistry);
         var result = await manager.UnbindContextAsync(GitContext);
         Assert.AreEqual(ContextBindingRemovalStatus.RegistryWriteConflict, result.Status);
         Assert.AreEqual(1, projectRegistry.TryRemoveBindingCallCount);
         Assert.AreEqual(1, projectRegistry.FindBindingCallCount);
+    }
+
+    /// <summary>
+    /// Verifies that creating a new Basic Memory project validates its returned identity and registers an active project routing.
+    /// </summary>
+    [TestMethod]
+    public async Task CreateProjectAsyncCreatesAndRegistersProject()
+    {
+        var projectDirectory = CreateProjectDirectory(BasicMemoryProjectValidationStatus.ExactMatch);
+        var projectLifecycle = CreateProjectLifecycle(BasicMemoryProjectCreationStatus.Created, ProjectAPath);
+        var projectRegistry = new StubProjectRegistry();
+        var manager = CreateManager(projectDirectory, projectRegistry, projectLifecycle);
+        var result = await manager.CreateProjectAsync("project-a", ProjectAPath);
+        Assert.AreEqual(ProjectCreationStatus.Created, result.Status);
+
+        Assert.IsNotNull(result.Routing);
+        Assert.AreEqual(ProjectAId, result.Routing.MemoryProjectId);
+        Assert.AreEqual("project-a", result.Routing.MemoryProjectName);
+        Assert.AreEqual(Status.Active, result.Routing.Status);
+
+        Assert.AreEqual(1, projectLifecycle.CreateCallCount);
+        Assert.AreEqual("project-a", projectLifecycle.CreatedMemoryProjectName);
+        Assert.AreEqual(ProjectAPath, projectLifecycle.CreatedMemoryProjectPath);
+
+        Assert.AreEqual(1, projectDirectory.ValidateCallCount);
+        Assert.AreEqual(ProjectAId, projectDirectory.ValidatedMemoryProjectId);
+        Assert.AreEqual("project-a", projectDirectory.ValidatedMemoryProjectName);
+
+        Assert.AreEqual(1, projectRegistry.CreateCallCount);
+        Assert.AreEqual(ProjectAId, projectRegistry.CreatedMemoryProjectId);
+        Assert.AreEqual("project-a", projectRegistry.CreatedMemoryProjectName);
+        Assert.AreEqual(Status.Active, projectRegistry.CreatedStatus);
+    }
+
+    /// <summary>
+    /// Verifies that an existing unregistered Basic Memory project at the requested path is adopted as recovery from a previous or concurrent create.
+    /// </summary>
+    [TestMethod]
+    public async Task CreateProjectAsyncRecoversExistingProject()
+    {
+        var projectDirectory = CreateProjectDirectory(BasicMemoryProjectValidationStatus.ExactMatch);
+        var projectLifecycle = CreateProjectLifecycle(BasicMemoryProjectCreationStatus.AlreadyExists, ProjectAPath);
+
+        var projectRegistry = new StubProjectRegistry();
+        var manager = CreateManager(projectDirectory, projectRegistry, projectLifecycle);
+        var result = await manager.CreateProjectAsync("project-a", ProjectAPath);
+        Assert.AreEqual(ProjectCreationStatus.Recovered, result.Status);
+
+        Assert.IsNotNull(result.Routing);
+        Assert.AreEqual(ProjectAId, result.Routing.MemoryProjectId);
+        Assert.AreEqual("project-a", result.Routing.MemoryProjectName);
+        Assert.AreEqual(Status.Active, result.Routing.Status);
+
+        Assert.AreEqual(1, projectLifecycle.CreateCallCount);
+        Assert.AreEqual(1, projectDirectory.ValidateCallCount);
+        Assert.AreEqual(1, projectRegistry.CreateCallCount);
+    }
+
+    /// <summary>
+    /// Verifies that an exact existing registry routing makes project creation idempotent without invoking Basic Memory create or changing routing status.
+    /// </summary>
+    [TestMethod]
+    public async Task CreateProjectAsyncReturnsAlreadyRegisteredWithoutCreatingProject()
+    {
+        var existingRouting = new ProjectRouting(ProjectAId, "project-a", Status.Inactive);
+        var projectDirectory = CreateProjectDirectory(BasicMemoryProjectValidationStatus.ExactMatch);
+        var projectLifecycle = new StubBasicMemoryProjectLifecycle();
+        var projectRegistry = new StubProjectRegistry
+        {
+            ProjectByName = existingRouting
+        };
+
+        var manager = CreateManager(projectDirectory, projectRegistry, projectLifecycle);
+        var result = await manager.CreateProjectAsync("project-a", ProjectAPath);
+        Assert.AreEqual(ProjectCreationStatus.AlreadyRegistered, result.Status);
+        Assert.AreEqual(existingRouting, result.Routing);
+        Assert.AreEqual(Status.Inactive, result.Routing!.Status);
+
+        Assert.AreEqual(0, projectLifecycle.CreateCallCount);
+        Assert.AreEqual(1, projectDirectory.ValidateCallCount);
+        Assert.AreEqual(ProjectAId, projectDirectory.ValidatedMemoryProjectId);
+        Assert.AreEqual("project-a", projectDirectory.ValidatedMemoryProjectName);
+        Assert.AreEqual(0, projectRegistry.CreateCallCount);
+    }
+
+    /// <summary>
+    /// Verifies that an existing unregistered Basic Memory project is not adopted when its filesystem path differs from the requested create path.
+    /// </summary>
+    [TestMethod]
+    public async Task CreateProjectAsyncRejectsExistingProjectAtDifferentPath()
+    {
+        var projectDirectory = CreateProjectDirectory(BasicMemoryProjectValidationStatus.ExactMatch);
+        var projectLifecycle = CreateProjectLifecycle(BasicMemoryProjectCreationStatus.AlreadyExists, ProjectBPath);
+        var projectRegistry = new StubProjectRegistry();
+        var manager = CreateManager(projectDirectory, projectRegistry, projectLifecycle);
+        var result = await manager.CreateProjectAsync("project-a", ProjectAPath);
+        Assert.AreEqual(ProjectCreationStatus.BasicMemoryProjectPathMismatch, result.Status);
+        Assert.IsNull(result.Routing);
+        Assert.AreEqual(1, projectLifecycle.CreateCallCount);
+        Assert.AreEqual(0, projectDirectory.ValidateCallCount);
+        Assert.AreEqual(0, projectRegistry.CreateCallCount);
+    }
+
+    /// <summary>
+    /// Verifies that project creation fails closed when Basic Memory returns a project name that differs from the exact requested name.
+    /// </summary>
+    [TestMethod]
+    public async Task CreateProjectAsyncRejectsReturnedProjectNameMismatch()
+    {
+        var projectDirectory = CreateProjectDirectory(BasicMemoryProjectValidationStatus.ExactMatch);
+        var projectLifecycle = CreateProjectLifecycle(BasicMemoryProjectCreationStatus.Created, ProjectAPath, memoryProjectName: "PROJECT-A");
+        var projectRegistry = new StubProjectRegistry();
+        var manager = CreateManager(projectDirectory, projectRegistry, projectLifecycle);
+        var result = await manager.CreateProjectAsync("project-a", ProjectAPath);
+        Assert.AreEqual(ProjectCreationStatus.BasicMemoryProjectNameMismatch, result.Status);
+        Assert.IsNull(result.Routing);
+        Assert.AreEqual(0, projectDirectory.ValidateCallCount);
+        Assert.AreEqual(0, projectRegistry.CreateCallCount);
+    }
+
+    /// <summary>
+    /// Verifies that a created project fails closed when its post-create Basic Memory identity cannot be found.
+    /// </summary>
+    [TestMethod]
+    public async Task CreateProjectAsyncRejectsMissingPostCreateProject()
+    {
+        await AssertCreateProjectValidationFailureAsync(BasicMemoryProjectValidationStatus.NotFound, ProjectCreationStatus.BasicMemoryProjectNotFound);
+    }
+
+    /// <summary>
+    /// Verifies that a created project fails closed when post-create validation reports a name mismatch.
+    /// </summary>
+    [TestMethod]
+    public async Task CreateProjectAsyncRejectsPostCreateNameMismatch()
+    {
+        await AssertCreateProjectValidationFailureAsync(BasicMemoryProjectValidationStatus.NameMismatch, ProjectCreationStatus.BasicMemoryProjectNameMismatch);
+    }
+
+    /// <summary>
+    /// Verifies that a created project fails closed when post-create validation reports an identifier mismatch.
+    /// </summary>
+    [TestMethod]
+    public async Task CreateProjectAsyncRejectsPostCreateIdMismatch()
+    {
+        await AssertCreateProjectValidationFailureAsync(BasicMemoryProjectValidationStatus.IdMismatch, ProjectCreationStatus.BasicMemoryProjectIdMismatch);
+    }
+
+    /// <summary>
+    /// Verifies that a created project fails closed when post-create validation reports conflicting identities.
+    /// </summary>
+    [TestMethod]
+    public async Task CreateProjectAsyncRejectsPostCreateIdentityConflict()
+    {
+        await AssertCreateProjectValidationFailureAsync(BasicMemoryProjectValidationStatus.IdentityConflict, ProjectCreationStatus.BasicMemoryProjectIdentityConflict);
+    }
+
+    /// <summary>
+    /// Verifies that an unknown post-create validation outcome fails closed instead of registering the project.
+    /// </summary>
+    [TestMethod]
+    public async Task CreateProjectAsyncFailsClosedForUnknownPostCreateValidationStatus()
+    {
+        await AssertCreateProjectValidationFailureAsync((BasicMemoryProjectValidationStatus)int.MaxValue, ProjectCreationStatus.BasicMemoryValidationFailed);
+    }
+
+    /// <summary>
+    /// Verifies that a concurrent exact registry insert after Basic Memory project creation is recovered as an idempotent registered result.
+    /// </summary>
+    [TestMethod]
+    public async Task CreateProjectAsyncHandlesConcurrentExactRegistryInsert()
+    {
+        var exactRouting = new ProjectRouting(ProjectAId, "project-a", Status.Active);
+        var projectDirectory = CreateProjectDirectory(BasicMemoryProjectValidationStatus.ExactMatch);
+        var projectLifecycle = CreateProjectLifecycle(BasicMemoryProjectCreationStatus.Created, ProjectAPath);
+        var projectRegistry = new StubProjectRegistry();
+        projectRegistry.CreateHandler = (memoryProjectId, memoryProjectName, status, cancellationToken) =>
+        {
+            projectRegistry.ProjectById = exactRouting;
+            projectRegistry.ProjectByName = exactRouting;
+            throw new ProjectRegistryConflictException("A concurrent writer created the routing.");
+        };
+
+        var manager = CreateManager(projectDirectory, projectRegistry, projectLifecycle);
+        var result = await manager.CreateProjectAsync("project-a", ProjectAPath);
+        Assert.AreEqual(ProjectCreationStatus.AlreadyRegistered, result.Status);
+        Assert.AreEqual(exactRouting, result.Routing);
+        Assert.AreEqual(1, projectRegistry.CreateCallCount);
+    }
+
+    /// <summary>
+    /// Verifies that an unresolved concurrent registry conflict after Basic Memory project creation fails closed.
+    /// </summary>
+    [TestMethod]
+    public async Task CreateProjectAsyncFailsClosedForUnresolvedRegistryConflict()
+    {
+        var projectDirectory = CreateProjectDirectory(BasicMemoryProjectValidationStatus.ExactMatch);
+        var projectLifecycle = CreateProjectLifecycle(BasicMemoryProjectCreationStatus.Created, ProjectAPath);
+        var projectRegistry = new StubProjectRegistry
+        {
+            CreateHandler = (memoryProjectId, memoryProjectName, status, cancellationToken) => throw new ProjectRegistryConflictException("A concurrent writer conflicted with project registration.")
+        };
+
+        var manager = CreateManager(projectDirectory, projectRegistry, projectLifecycle);
+        var result = await manager.CreateProjectAsync("project-a", ProjectAPath);
+        Assert.AreEqual(ProjectCreationStatus.RegistryWriteConflict, result.Status);
+        Assert.IsNull(result.Routing);
+    }
+
+    /// <summary>
+    /// Verifies that a project created by Basic Memory remains recoverable when the first ProjectMemoryProxy registry write fails unexpectedly.
+    /// </summary>
+    [TestMethod]
+    public async Task CreateProjectAsyncRecoversAfterPreviousRegistryFailure()
+    {
+        var createAttempt = 0;
+
+        var projectDirectory = CreateProjectDirectory(BasicMemoryProjectValidationStatus.ExactMatch);
+        var projectLifecycle = new StubBasicMemoryProjectLifecycle
+        {
+            CreateHandler = (memoryProjectName, memoryProjectPath, cancellationToken) =>
+            {
+                createAttempt++;
+
+                return Task.FromResult(
+                    new BasicMemoryProjectCreationResult(
+                        createAttempt == 1 ? BasicMemoryProjectCreationStatus.Created : BasicMemoryProjectCreationStatus.AlreadyExists,
+                        new BasicMemoryProjectInfo(ProjectAId, "project-a"),
+                        ProjectAPath));
+            }
+        };
+
+        var projectRegistry = new StubProjectRegistry();
+        projectRegistry.CreateHandler = (memoryProjectId, memoryProjectName, status, cancellationToken) =>
+        {
+            if (projectRegistry.CreateCallCount == 1)
+                throw new InvalidOperationException("Simulated registry persistence failure.");
+
+            return Task.FromResult(new ProjectRouting(memoryProjectId, memoryProjectName, status));
+        };
+
+        var manager = CreateManager(projectDirectory, projectRegistry, projectLifecycle);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => manager.CreateProjectAsync("project-a", ProjectAPath));
+
+        var retryResult = await manager.CreateProjectAsync("project-a", ProjectAPath);
+        Assert.AreEqual(ProjectCreationStatus.Recovered, retryResult.Status);
+        Assert.IsNotNull(retryResult.Routing);
+        Assert.AreEqual(ProjectAId, retryResult.Routing.MemoryProjectId);
+
+        Assert.AreEqual(2, projectLifecycle.CreateCallCount);
+        Assert.AreEqual(2, projectRegistry.CreateCallCount);
+    }
+
+    /// <summary>
+    /// Verifies that project creation rejects a relative Basic Memory filesystem path before invoking external lifecycle operations.
+    /// </summary>
+    [TestMethod]
+    public async Task CreateProjectAsyncRejectsRelativeProjectPath()
+    {
+        var projectDirectory = CreateProjectDirectory(BasicMemoryProjectValidationStatus.ExactMatch);
+        var projectLifecycle = new StubBasicMemoryProjectLifecycle();
+        var projectRegistry = new StubProjectRegistry();
+
+        var manager = CreateManager(projectDirectory, projectRegistry, projectLifecycle);
+        await Assert.ThrowsAsync<ArgumentException>(() => manager.CreateProjectAsync("project-a", "relative/project-a"));
+        Assert.AreEqual(0, projectLifecycle.CreateCallCount);
+        Assert.AreEqual(0, projectDirectory.ValidateCallCount);
+        Assert.AreEqual(0, projectRegistry.TotalCallCount);
     }
 
     #endregion
@@ -815,7 +1085,7 @@ public sealed class ProjectRegistryManagerTests
     {
         var projectDirectory = CreateProjectDirectory(validationStatus);
         var projectRegistry = new StubProjectRegistry();
-        var manager = new ProjectRegistryManager(projectDirectory, projectRegistry);
+        var manager = CreateManager(projectDirectory, projectRegistry);
         var result = await manager.RegisterExistingProjectAsync(ProjectAId, "project-a");
         Assert.AreEqual(expectedRegistrationStatus, result.Status);
         Assert.IsNull(result.Routing);
@@ -836,12 +1106,42 @@ public sealed class ProjectRegistryManagerTests
         var projectDirectory = CreateProjectDirectory(validationStatus);
         var projectRegistry = new StubProjectRegistry { ProjectById = new ProjectRouting(ProjectAId, "project-a", Status.Inactive) };
 
-        var manager = new ProjectRegistryManager(projectDirectory, projectRegistry);
+        var manager = CreateManager(projectDirectory, projectRegistry);
         var result = await manager.ReactivateProjectAsync(ProjectAId);
         Assert.AreEqual(expectedStatus, result.Status);
         Assert.IsNull(result.Routing);
         Assert.AreEqual(1, projectDirectory.ValidateCallCount);
         Assert.AreEqual(0, projectRegistry.TryUpdateProjectStatusCallCount);
+    }
+
+    private static ProjectRegistryManager CreateManager(StubBasicMemoryProjectDirectory projectDirectory, StubProjectRegistry projectRegistry, StubBasicMemoryProjectLifecycle? projectLifecycle = null)
+    {
+        return new ProjectRegistryManager(projectDirectory, projectLifecycle ?? new StubBasicMemoryProjectLifecycle(), projectRegistry);
+    }
+
+    private static StubBasicMemoryProjectLifecycle CreateProjectLifecycle(BasicMemoryProjectCreationStatus status, string projectPath, Guid? memoryProjectId = null, string memoryProjectName = "project-a")
+    {
+        return new StubBasicMemoryProjectLifecycle
+                   {
+                       CreateHandler = (requestedProjectName, requestedProjectPath, cancellationToken) =>
+                           Task.FromResult(new BasicMemoryProjectCreationResult(status, new BasicMemoryProjectInfo(memoryProjectId ?? ProjectAId, memoryProjectName), projectPath))
+                   };
+    }
+
+    private static async Task AssertCreateProjectValidationFailureAsync(BasicMemoryProjectValidationStatus validationStatus, ProjectCreationStatus expectedStatus)
+    {
+        var projectDirectory = CreateProjectDirectory(validationStatus);
+        var projectLifecycle = CreateProjectLifecycle(BasicMemoryProjectCreationStatus.Created, ProjectAPath);
+        var projectRegistry = new StubProjectRegistry();
+        var manager = CreateManager(projectDirectory, projectRegistry, projectLifecycle);
+
+        var result = await manager.CreateProjectAsync("project-a", ProjectAPath);
+        Assert.AreEqual(expectedStatus, result.Status);
+        Assert.IsNull(result.Routing);
+
+        Assert.AreEqual(1, projectLifecycle.CreateCallCount);
+        Assert.AreEqual(1, projectDirectory.ValidateCallCount);
+        Assert.AreEqual(0, projectRegistry.CreateCallCount);
     }
 
     #endregion
@@ -1049,6 +1349,39 @@ public sealed class ProjectRegistryManagerTests
             return TryRemoveBindingHandler != null ?
                        TryRemoveBindingHandler(contextId, cancellationToken) :
                        Task.FromResult(true);
+        }
+
+        #endregion
+    }
+
+    private sealed class StubBasicMemoryProjectLifecycle : IBasicMemoryProjectLifecycle
+    {
+        #region Properties
+
+        public Func<string, string, CancellationToken, Task<BasicMemoryProjectCreationResult>>? CreateHandler { get; set; }
+
+        public int CreateCallCount { get; private set; }
+
+        public string? CreatedMemoryProjectName { get; private set; }
+
+        public string? CreatedMemoryProjectPath { get; private set; }
+
+        #endregion
+
+        #region Public Methods
+
+        public Task<BasicMemoryProjectCreationResult> CreateAsync(string memoryProjectName, string memoryProjectPath, CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            CreateCallCount++;
+            CreatedMemoryProjectName = memoryProjectName;
+            CreatedMemoryProjectPath = memoryProjectPath;
+
+            if (CreateHandler == null)
+                throw new NotSupportedException("The test did not configure a Basic Memory project-create operation.");
+
+            return CreateHandler(memoryProjectName, memoryProjectPath, cancellationToken);
         }
 
         #endregion
