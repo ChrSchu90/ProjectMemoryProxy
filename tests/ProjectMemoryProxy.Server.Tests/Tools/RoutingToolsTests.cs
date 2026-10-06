@@ -234,6 +234,12 @@ public sealed class RoutingToolsTests
             return Task.FromResult<IReadOnlyList<ProjectRouting>>(Array.Empty<ProjectRouting>());
         }
 
+        public Task<IReadOnlyList<ContextBinding>> ListBindingsAsync(CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult<IReadOnlyList<ContextBinding>>(Array.Empty<ContextBinding>());
+        }
+
         #endregion
     }
 

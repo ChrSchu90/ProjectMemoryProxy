@@ -66,6 +66,7 @@ var mcpServerBuilder = builder.Services
     });
 
 mcpServerBuilder.WithTools<RoutingTools>();
+mcpServerBuilder.WithTools<ControlPlaneTools>();
 
 var app = builder.Build();
 

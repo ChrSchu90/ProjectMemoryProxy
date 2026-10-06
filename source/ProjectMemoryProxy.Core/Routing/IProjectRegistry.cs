@@ -29,6 +29,13 @@ public interface IProjectRegistry
     Task<IReadOnlyList<ProjectRouting>> ListProjectsAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Lists all registered exact technical context bindings.
+    /// </summary>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The registered context bindings.</returns>
+    Task<IReadOnlyList<ContextBinding>> ListBindingsAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Finds the project route associated with a context.
     /// </summary>
     /// <param name="contextId">The context identifier.</param>

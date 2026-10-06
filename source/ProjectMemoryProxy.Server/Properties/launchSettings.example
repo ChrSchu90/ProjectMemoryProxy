@@ -10,7 +10,7 @@
         "ASPNETCORE_ENVIRONMENT": "Development",
         "ProjectMemoryProxy__LogLevel": "Debug",
         "ProjectMemoryProxy__DataDirectory": "/data",
-        "ProjectMemoryProxy__BasicMemoryEndpoint": "http://localhost:5101",
+        "ProjectMemoryProxy__BasicMemoryEndpoint": "http://localhost:5101/mcp",
         "ProjectMemoryProxy__BasicMemoryConnectionTimeout": "00:00:30"
       }
     }

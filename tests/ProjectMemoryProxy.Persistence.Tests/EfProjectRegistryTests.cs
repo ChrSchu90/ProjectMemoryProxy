@@ -355,6 +355,56 @@ public sealed class EfProjectRegistryTests
     }
 
     /// <summary>
+    /// Verifies that all registered context bindings are listed with exact context identifiers, targets, statuses, and deterministic ordering.
+    /// </summary>
+    [TestMethod]
+    public async Task ListBindingsAsyncReturnsAllBindings()
+    {
+        var chatGptProjectId = Guid.NewGuid();
+        var gitProjectId = Guid.NewGuid();
+        await CreateDatabaseAsync(_databasePath,
+            new ProjectRoutingEntity
+            {
+                MemoryProjectId = chatGptProjectId,
+                MemoryProjectName = "chatgpt-project",
+                Bindings =
+                        {
+                            new ContextBindingEntity
+                                {
+                                    BindingType = BindingType.ChatGptProject,
+                                    BindingName = "chatty-mcp-and-aiharborvm",
+                                    Status = Status.Inactive
+                                }
+                        }
+            },
+            new ProjectRoutingEntity
+            {
+                MemoryProjectId = gitProjectId,
+                MemoryProjectName = "git-project",
+                Bindings =
+                        {
+                            new ContextBindingEntity
+                                {
+                                    BindingType = BindingType.GitRepository,
+                                    BindingName = "github.com/ChrSchu90/ProjectMemoryProxy",
+                                    Status = Status.Active
+                                }
+                        }
+            });
+
+        var registry = CreateRegistry(_databasePath);
+        var bindings = await registry.ListBindingsAsync(CancellationToken.None);
+
+        Assert.AreEqual(2, bindings.Count);
+        Assert.AreEqual("chatgpt-project:chatty-mcp-and-aiharborvm", bindings[0].ContextId.ToString());
+        Assert.AreEqual(chatGptProjectId, bindings[0].MemoryProjectId);
+        Assert.AreEqual(Status.Inactive, bindings[0].Status);
+        Assert.AreEqual("git:github.com/ChrSchu90/ProjectMemoryProxy", bindings[1].ContextId.ToString());
+        Assert.AreEqual(gitProjectId, bindings[1].MemoryProjectId);
+        Assert.AreEqual(Status.Active, bindings[1].Status);
+    }
+
+    /// <summary>
     /// Verifies that an exact registered context binding can be found with its target project identifier and persisted status.
     /// </summary>
     [TestMethod]
@@ -931,14 +981,18 @@ public sealed class EfProjectRegistryTests
         return new EfProjectRegistry(new TestDbContextFactory(options));
     }
 
-    private static async Task CreateDatabaseAsync(string databasePath, ProjectRoutingEntity projectRouting)
+    private static async Task CreateDatabaseAsync(string databasePath, params ProjectRoutingEntity[] projectRoutings)
     {
         var options = ContextOptions.Create(databasePath, pooling: false);
 
         await using var dbContext = new ProjectMemoryProxyDbContext(options);
         await dbContext.Database.MigrateAsync();
 
-        dbContext.RoutingProjects.Add(projectRouting);
+        foreach (var projectRouting in projectRoutings)
+        {
+            dbContext.RoutingProjects.Add(projectRouting);
+        }
+
         await dbContext.SaveChangesAsync();
     }
 

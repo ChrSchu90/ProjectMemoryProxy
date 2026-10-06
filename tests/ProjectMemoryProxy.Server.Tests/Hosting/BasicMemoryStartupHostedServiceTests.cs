@@ -257,6 +257,12 @@ public sealed class BasicMemoryStartupHostedServiceTests
             return Task.FromResult<IReadOnlyList<ProjectRouting>>(_projectsById.Values.ToArray());
         }
 
+        public Task<IReadOnlyList<ContextBinding>> ListBindingsAsync(CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult<IReadOnlyList<ContextBinding>>(Array.Empty<ContextBinding>());
+        }
+
         public Task<ProjectRoute?> FindRouteAsync(ContextId contextId, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();

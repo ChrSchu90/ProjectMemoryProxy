@@ -436,3 +436,4 @@ FodyWeavers.xsd
 # Debugging
 launchSettings.json
 .runsettings
+http-client.env.json

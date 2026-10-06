@@ -61,6 +61,28 @@ internal sealed class EfProjectRegistry : IProjectRegistry
     }
 
     /// <inheritdoc />
+    public async Task<IReadOnlyList<ContextBinding>> ListBindingsAsync(CancellationToken cancellationToken = default)
+    {
+        await using var dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+        var persistedBindings = await dbContext.ContextBindings
+                                    .AsNoTracking()
+                                    .OrderBy(binding => binding.BindingType)
+                                    .ThenBy(binding => binding.BindingName)
+                                    .Select(binding => new { binding.BindingType, binding.BindingName, binding.RoutingProject.MemoryProjectId, binding.Status })
+                                    .ToListAsync(cancellationToken)
+                                    .ConfigureAwait(false);
+
+        var bindings = new List<ContextBinding>(persistedBindings.Count);
+        foreach (var persistedBinding in persistedBindings)
+        {
+            var contextId = CreateContextId(persistedBinding.BindingType, persistedBinding.BindingName);
+            bindings.Add(new ContextBinding(contextId, persistedBinding.MemoryProjectId, persistedBinding.Status));
+        }
+
+        return bindings;
+    }
+
+    /// <inheritdoc />
     public async Task<ProjectRoute?> FindRouteAsync(ContextId contextId, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(contextId);
@@ -301,6 +323,27 @@ internal sealed class EfProjectRegistry : IProjectRegistry
     #endregion
 
     #region Private Methods
+
+    private static ContextId CreateContextId(BindingType bindingType, string bindingName)
+    {
+        string? contextIdValue;
+        switch (bindingType)
+        {
+            case BindingType.ChatGptProject:
+                contextIdValue = $"chatgpt-project:{bindingName}";
+                break;
+            case BindingType.GitRepository:
+                contextIdValue = $"git:{bindingName}";
+                break;
+            default:
+                throw new InvalidOperationException($"Persisted context binding type '{bindingType}' is unsupported.");
+        }
+
+        if (!ContextId.TryParse(contextIdValue, out var contextId))
+            throw new InvalidOperationException($"Persisted context binding '{contextIdValue}' is invalid.");
+
+        return contextId;
+    }
 
     private static bool IsUniqueConstraintViolation(DbUpdateException exception)
     {
