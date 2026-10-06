@@ -1,6 +1,7 @@
 namespace ProjectMemoryProxy.Persistence.Routing;
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -46,6 +47,18 @@ internal sealed class EfProjectRegistry : IProjectRegistry
     #endregion
 
     #region Public Methods
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<ProjectRouting>> ListProjectsAsync(CancellationToken cancellationToken = default)
+    {
+        await using var dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+        return await dbContext.RoutingProjects
+                   .AsNoTracking()
+                   .OrderBy(project => project.MemoryProjectName)
+                   .Select(project => new ProjectRouting(project.MemoryProjectId, project.MemoryProjectName, project.Status))
+                   .ToListAsync(cancellationToken)
+                   .ConfigureAwait(false);
+    }
 
     /// <inheritdoc />
     public async Task<ProjectRoute?> FindRouteAsync(ContextId contextId, CancellationToken cancellationToken = default)

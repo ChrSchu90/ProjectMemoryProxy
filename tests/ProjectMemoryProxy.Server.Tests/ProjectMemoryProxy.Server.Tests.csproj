@@ -5,6 +5,11 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+		<FrameworkReference Include="Microsoft.AspNetCore.App" />
+		<PackageReference Include="ModelContextProtocol.AspNetCore" Version="2.2.0" />
+	</ItemGroup>
+
+	<ItemGroup>
 		<ProjectReference Include="../../source/ProjectMemoryProxy.Server/ProjectMemoryProxy.Server.csproj" />
 	</ItemGroup>
 

@@ -1,11 +1,13 @@
 namespace ProjectMemoryProxy.Server.Hosting;
 
-using System;
-using System.Threading;
-using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using ProjectMemoryProxy.BasicMemory;
+using ProjectMemoryProxy.BasicMemory.Projects;
+using System;
+using System.Threading;
+using System.Threading.Tasks;
 
 /// <summary>
 /// Blocks application startup until Basic Memory is reachable and its proxy toolset is registered.
@@ -50,7 +52,7 @@ internal sealed class BasicMemoryStartupHostedService : IHostedService
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         _logger.LogInformation("Waiting for Basic Memory MCP to be available and expose its toolset...");
-        await BasicMemoryStartupRetryPolicy.ExecuteAsync(_serviceProvider.RegisterBasicMemoryMirroredToolsAsync, _logger, RetryDelay, cancellationToken).ConfigureAwait(false);
+        await BasicMemoryStartupRetryPolicy.ExecuteAsync(InitializeBasicMemoryAsync, _logger, RetryDelay, cancellationToken).ConfigureAwait(false);
         _logger.LogInformation("Received Basic Memory MCP toolset and registered mirrored tools.");
     }
 
@@ -63,6 +65,16 @@ internal sealed class BasicMemoryStartupHostedService : IHostedService
     #endregion
 
     #region Private Methods
+
+    private async Task InitializeBasicMemoryAsync(CancellationToken cancellationToken)
+    {
+        // Basic Memory tool mirroring
+        await _serviceProvider.RegisterBasicMemoryMirroredToolsAsync(cancellationToken).ConfigureAwait(false);
+
+        // Project registry reconciliation
+        var projectRegistryReconciler = _serviceProvider.GetRequiredService<ProjectRegistryReconciler>();
+        await projectRegistryReconciler.ReconcileAsync(cancellationToken).ConfigureAwait(false);
+    }
 
     #endregion
 }

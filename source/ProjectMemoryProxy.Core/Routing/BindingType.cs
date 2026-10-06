@@ -1,8 +1,5 @@
 ﻿namespace ProjectMemoryProxy.Core.Routing;
 
-using System;
-
-
 /// <summary>
 /// Identifies the source type of project context binding.
 /// </summary>

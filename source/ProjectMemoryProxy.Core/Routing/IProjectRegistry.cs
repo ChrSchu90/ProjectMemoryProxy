@@ -1,6 +1,7 @@
 namespace ProjectMemoryProxy.Core.Routing;
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 
 using System.Threading.Tasks;
@@ -19,6 +20,13 @@ public interface IProjectRegistry
     #endregion
 
     #region Methods
+
+    /// <summary>
+    /// Lists all registered project routings.
+    /// </summary>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The registered project routings.</returns>
+    Task<IReadOnlyList<ProjectRouting>> ListProjectsAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Finds the project route associated with a context.

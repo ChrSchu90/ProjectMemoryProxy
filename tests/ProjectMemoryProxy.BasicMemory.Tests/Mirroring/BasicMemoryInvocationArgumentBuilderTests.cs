@@ -270,6 +270,12 @@ public sealed class BasicMemoryInvocationArgumentBuilderTests
             throw new NotSupportedException();
         }
 
+        public Task<IReadOnlyList<ProjectRouting>> ListProjectsAsync(CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult<IReadOnlyList<ProjectRouting>>(Array.Empty<ProjectRouting>());
+        }
+
         #endregion
     }
 

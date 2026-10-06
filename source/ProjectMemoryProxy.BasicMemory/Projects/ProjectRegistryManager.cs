@@ -264,6 +264,42 @@ public sealed class ProjectRegistryManager
                    new ContextBindingRemovalResult(ContextBindingRemovalStatus.RegistryWriteConflict);
     }
 
+    /// <summary>
+    /// Registers a project identity that has already been validated against the current Basic Memory project snapshot.
+    /// </summary>
+    /// <param name="memoryProjectId">The validated Basic Memory external project identifier.</param>
+    /// <param name="memoryProjectName">The validated Basic Memory project name.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The project registration result.</returns>
+    internal async Task<ProjectRegistrationResult> RegisterValidatedProjectAsync(Guid memoryProjectId, string memoryProjectName, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(memoryProjectName);
+
+        if (memoryProjectId == Guid.Empty)
+            throw new ArgumentException("The Basic Memory project identifier must not be empty.", nameof(memoryProjectId));
+
+        var existing = await GetExistingRegistrationResultAsync(memoryProjectId, memoryProjectName, cancellationToken).ConfigureAwait(false);
+        if (existing != null)
+            return existing;
+
+        try
+        {
+            var routing = await _projectRegistry.CreateAsync(
+                                  memoryProjectId,
+                                  memoryProjectName,
+                                  Status.Active,
+                                  cancellationToken)
+                              .ConfigureAwait(false);
+
+            return new ProjectRegistrationResult(ProjectRegistrationStatus.Registered, routing);
+        }
+        catch (ProjectRegistryConflictException)
+        {
+            return await GetExistingRegistrationResultAsync(memoryProjectId, memoryProjectName, cancellationToken).ConfigureAwait(false) ?? 
+                   new ProjectRegistrationResult(ProjectRegistrationStatus.RegistryWriteConflict, null);
+        }
+    }
+
     #endregion
 
     #region Private Methods
@@ -395,24 +431,6 @@ public sealed class ProjectRegistryManager
             BasicMemoryProjectValidationStatus.IdentityConflict => ProjectRoutingStatusChangeStatus.BasicMemoryProjectIdentityConflict,
             _ => ProjectRoutingStatusChangeStatus.BasicMemoryValidationFailed
         };
-    }
-
-    private async Task<ProjectRegistrationResult> RegisterValidatedProjectAsync(Guid memoryProjectId, string memoryProjectName, CancellationToken cancellationToken)
-    {
-        var existing = await GetExistingRegistrationResultAsync(memoryProjectId, memoryProjectName, cancellationToken).ConfigureAwait(false);
-        if (existing != null)
-            return existing;
-
-        try
-        {
-            var routing = await _projectRegistry.CreateAsync(memoryProjectId, memoryProjectName, Status.Active, cancellationToken).ConfigureAwait(false);
-            return new ProjectRegistrationResult(ProjectRegistrationStatus.Registered, routing);
-        }
-        catch (ProjectRegistryConflictException)
-        {
-            return await GetExistingRegistrationResultAsync(memoryProjectId, memoryProjectName, cancellationToken).ConfigureAwait(false) ??
-                   new ProjectRegistrationResult(ProjectRegistrationStatus.RegistryWriteConflict, null);
-        }
     }
 
     private static ProjectCreationStatus MapCreationValidationStatus(BasicMemoryProjectValidationStatus status)

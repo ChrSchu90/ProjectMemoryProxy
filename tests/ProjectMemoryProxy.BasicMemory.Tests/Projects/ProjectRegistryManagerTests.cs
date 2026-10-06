@@ -1648,6 +1648,12 @@ public sealed class ProjectRegistryManagerTests
             return removed;
         }
 
+        public Task<IReadOnlyList<ProjectRouting>> ListProjectsAsync(CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult<IReadOnlyList<ProjectRouting>>(Array.Empty<ProjectRouting>());
+        }
+
         #endregion
     }
 
