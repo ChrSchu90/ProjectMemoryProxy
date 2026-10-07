@@ -3,7 +3,8 @@ name: Build
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 6 * * 5' # Every Friday at 06:00 UTC
+    - cron: '27 15 * * 5'
+      timezone: 'Europe/Berlin'
   push:
     branches:
       - '**'
@@ -19,9 +20,6 @@ on:
     branches:
       - 'main'
 
-permissions:
-  contents: write # Create/update GitHub Releases
-
 env:
   NET_SOLUTION: ProjectMemoryProxy.slnx
   NET_DEPLOY_PROJECT: source/ProjectMemoryProxy.Server/ProjectMemoryProxy.Server.csproj
@@ -30,11 +28,18 @@ env:
   NET_PUBLISH_ARGS: "--verbosity normal --configuration Release -p:DebugType=embedded -p:PublishSingleFile=true -p:GenerateDocumentationFile=false --self-contained false"
   APP_LINUX_X64_ARCHIVE: "ProjectMemoryProxy-linux-x64.tar.gz"
   APP_WIN_X64_ARCHIVE: "ProjectMemoryProxy-win-x64.zip"
+  DOCKER_REGISTRY: ghcr.io
+  DOCKER_FULL_IMAGE_NAME: ghcr.io/chrschu90/project-memory-proxy
+  DOCKER_PLATFORMS: linux/amd64,linux/arm64/v8,linux/arm/v7
 
 jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
+    permissions:
+      packages: write # Docker push image to GHCR
+      id-token: write # GHCR auth and Cosign OIDC signing/verification
+      contents: write # Create/update GitHub Releases
     steps:
     - name: Checkout
       uses: actions/checkout@v7
@@ -52,7 +57,7 @@ jobs:
       uses: ChrSchu90/GitTagSemanticVersion@v1.1
       if: startsWith(github.event.ref, 'refs/tags/v')
       id: tagver
-
+    
     - name: .NET Tool Restore
       run: dotnet tool restore
 
@@ -71,19 +76,122 @@ jobs:
     - name: .NET Publish
       shell: bash
       env:
-        VERSION: ${{ steps.tagver.outputs.version }}
+        APP_VERSION: ${{ steps.tagver.outputs.package || '0.0.1' }}
       run: |
         set -euo pipefail
-        if [[ -n "${VERSION//[[:space:]]/}" ]]; then
-          dotnet publish "$NET_DEPLOY_PROJECT" -r linux-x64 $NET_PUBLISH_ARGS -p:Version="$VERSION" -o "${NET_PUBLISH_DIR}linux-x64"     
-          dotnet publish "$NET_DEPLOY_PROJECT" -r win-x64 $NET_PUBLISH_ARGS -p:Version="$VERSION" -o "${NET_PUBLISH_DIR}win-x64"     
-        else
-          dotnet publish "$NET_DEPLOY_PROJECT" -r linux-x64 $NET_PUBLISH_ARGS -o "${NET_PUBLISH_DIR}linux-x64"
-          dotnet publish "$NET_DEPLOY_PROJECT" -r win-x64 $NET_PUBLISH_ARGS -o "${NET_PUBLISH_DIR}win-x64"
-        fi
-
+        
+        dotnet publish "$NET_DEPLOY_PROJECT" -r linux-x64 $NET_PUBLISH_ARGS -p:Version="$APP_VERSION" -o "${NET_PUBLISH_DIR}linux-x64"     
+        dotnet publish "$NET_DEPLOY_PROJECT" -r win-x64 $NET_PUBLISH_ARGS -p:Version="$APP_VERSION" -o "${NET_PUBLISH_DIR}win-x64"     
+        
         tar -czf "${NET_PUBLISH_DIR}${APP_LINUX_X64_ARCHIVE}" -C "${NET_PUBLISH_DIR}linux-x64" .
-        (cd "${NET_PUBLISH_DIR}win-x64" && zip -r "../${APP_WIN_X64_ARCHIVE}" .)      
+        (cd "${NET_PUBLISH_DIR}win-x64" && zip -r "../${APP_WIN_X64_ARCHIVE}" .)
+    
+    - name: Docker QEMU Setup
+      uses: docker/setup-qemu-action@v4
+
+    - name: Docker Buildx Setup
+      uses: docker/setup-buildx-action@v4
+
+    - name: Cosign Setup
+      uses: sigstore/cosign-installer@v4.1.2
+
+    - name: Docker Login
+      uses: docker/login-action@v4
+      if: ${{ steps.tagver.outputs.is_valid == 'true' }}
+      with:
+        registry: ${{ env.DOCKER_REGISTRY }}
+        username: ${{ github.repository_owner }}
+        password: ${{ secrets.GITHUB_TOKEN }}       
+
+    - name: Docker tags/labels
+      uses: docker/metadata-action@v6
+      id: dockermeta
+      with:
+        images: ${{ env.DOCKER_FULL_IMAGE_NAME }}
+        tags: |
+          # Specific stable patch version (fully pinned)
+          type=raw,value=${{ steps.tagver.outputs.version }},enable=${{ steps.tagver.outputs.is_release == 'true' }}
+          # Latest stable release in major + minor version
+          type=raw,value=${{ steps.tagver.outputs.major }}.${{ steps.tagver.outputs.minor }},enable=${{ steps.tagver.outputs.is_release == 'true' }}
+          # Latest stable release in major version
+          type=raw,value=${{ steps.tagver.outputs.major }},enable=${{ steps.tagver.outputs.is_release == 'true' }}
+          # latest – Most recent stable release
+          type=raw,value=latest,enable=${{ steps.tagver.outputs.is_release == 'true' }}
+          # Specific preview build (fully pinned)
+          type=raw,value=${{ steps.tagver.outputs.version }}-${{ steps.tagver.outputs.suffix }},enable=${{ steps.tagver.outputs.is_prerelease == 'true' }}
+          # Latest preview for minor + minor + patch version
+          type=raw,value=${{ steps.tagver.outputs.version }}-preview,enable=${{ steps.tagver.outputs.is_prerelease == 'true' || steps.tagver.outputs.is_release == 'true' }}
+          # Latest preview for minor + minor version
+          type=raw,value=${{ steps.tagver.outputs.major }}.${{ steps.tagver.outputs.minor }}-preview,enable=${{ steps.tagver.outputs.is_prerelease == 'true' || steps.tagver.outputs.is_release == 'true' }}
+          # Latest preview for major version
+          type=raw,value=${{ steps.tagver.outputs.major }}-preview,enable=${{ steps.tagver.outputs.is_prerelease == 'true' || steps.tagver.outputs.is_release == 'true' }}
+          # Latest preview build
+          type=raw,value=preview,enable=${{ steps.tagver.outputs.is_prerelease == 'true' || steps.tagver.outputs.is_release == 'true' }}
+          # Test build
+          type=raw,value=ci,enable=${{ steps.tagver.outputs.is_valid != 'true' }}
+
+    - name: Docker build/push
+      uses: docker/build-push-action@v7
+      if: ${{ steps.dockermeta.outcome == 'success' }}
+      id: docker_build
+      with:
+        context: .
+        push: ${{ steps.tagver.outputs.is_valid == 'true' }}
+        platforms: ${{ env.DOCKER_PLATFORMS }}
+        tags: ${{ steps.dockermeta.outputs.tags }}
+        labels: ${{ steps.dockermeta.outputs.labels }}
+        annotations: ${{ steps.dockermeta.outputs.annotations }}
+        #cache-from: type=gha
+        #cache-to: type=gha,mode=max
+        build-args: |
+          APP_VERSION=${{ steps.tagver.outputs.package || '0.0.1' }}
+
+    - name: Sign Docker Image
+      if: ${{ steps.tagver.outputs.is_valid == 'true' }}
+      id: docker_sign
+      shell: bash
+      env:
+        IMAGE_REF: ${{ env.DOCKER_FULL_IMAGE_NAME }}@${{ steps.docker_build.outputs.digest }}
+      run: |
+        echo "::notice::Signing image: ${IMAGE_REF}"
+        for i in {1..5}; do
+          if cosign sign --yes "${IMAGE_REF}"; then
+            echo "Signed: ${IMAGE_REF}"
+            echo "signed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "Signing attempt ${i} failed, retrying..."
+          sleep $((2 ** i))
+        done
+        echo "signed=false" >> "$GITHUB_OUTPUT"
+        echo "::error::Failed to sign image ${IMAGE_REF}"
+        exit 1
+
+    - name: Verify Docker Image
+      if: ${{ steps.tagver.outputs.is_valid == 'true' }}
+      id: docker_verify
+      shell: bash
+      env:
+        IMAGE_REF: ${{ env.DOCKER_FULL_IMAGE_NAME }}@${{ steps.docker_build.outputs.digest }}
+        COSIGN_IDENTITY: ^https://github.com/${{ github.repository }}/\.github/workflows/build\.yml@refs/tags/v.*$
+        COSIGN_ISSUER: https://token.actions.githubusercontent.com
+      run: |
+        echo "::notice::Verifying image: ${IMAGE_REF}"
+        for i in {1..5}; do
+          if cosign verify \
+            --certificate-identity-regexp "${COSIGN_IDENTITY}" \
+            --certificate-oidc-issuer "${COSIGN_ISSUER}" \
+            "${IMAGE_REF}"; then
+            echo "Image verified: ${IMAGE_REF}"
+            echo "verified=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "Verification attempt ${i} failed, retrying..."
+          sleep $((2 ** i))
+        done
+        echo "verified=false" >> "$GITHUB_OUTPUT"
+        echo "::error::Image verification failed for ${IMAGE_REF}"
+        exit 1
 
     - name: Create Release
       if: ${{ steps.tagver.outputs.is_valid == 'true' }}

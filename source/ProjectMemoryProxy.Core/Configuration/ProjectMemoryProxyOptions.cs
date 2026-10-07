@@ -19,7 +19,7 @@ public sealed class ProjectMemoryProxyOptions
     /// <summary>
     /// Gets the default minimum Serilog event level.
     /// </summary>
-    public const string DefaultLogLevel = "Information";
+    public const string DefaultLogLevel = "Warning";
 
     #endregion
 

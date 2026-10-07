@@ -1,0 +1,84 @@
+services:
+  basic-memory:
+    image: ghcr.io/basicmachines-co/basic-memory:latest
+    restart: unless-stopped
+    environment:
+      BASIC_MEMORY_FORCE_LOCAL: true
+      BASIC_MEMORY_NO_PROMOS: true
+      BASIC_MEMORY_DEFAULT_PROJECT: main
+      BASIC_MEMORY_INDEX_CHANGES: true
+      BASIC_MEMORY_INDEX_DELAY: 1000
+      BASIC_MEMORY_SEMANTIC_SEARCH_ENABLED: true
+      BASIC_MEMORY_RERANKER_ENABLED: true
+      BASIC_MEMORY_LOG_LEVEL: INFO
+    command:
+      - basic-memory
+      - mcp
+      - --transport
+      - streamable-http
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+      - --path
+      - /mcp
+    volumes:
+      - basic-memory-data:/app/data
+      - basic-memory-config:/home/appuser/.basic-memory
+    expose:
+      - "8000"
+    networks:
+      - memory_net
+
+
+  project-memory-proxy:
+    image: ghcr.io/chrschu90/project-memory-proxy:latest
+    restart: unless-stopped
+    #user: "1000:1000" # (optional)
+    environment:
+      ProjectMemoryProxy__BasicMemoryEndpoint: http://basic-memory:8000/mcp
+      #ProjectMemoryProxy__BasicMemoryConnectionTimeout: "00:00:30" (default 30s)
+      #ProjectMemoryProxy__LogLevel: "Warning" (optional)
+    volumes:
+      - project-memory-proxy-data:/data
+    expose:
+      - "8000"
+    depends_on:
+      - basic-memory
+    networks:
+      - memory_net
+      - tunnel_net
+
+
+  openai-tunnel:
+    image: ghcr.io/openai/tunnel-client:latest
+    restart: unless-stopped
+    environment:
+      CONTROL_PLANE_API_KEY: ${CONTROL_PLANE_API_KEY}
+      CONTROL_PLANE_TUNNEL_ID: ${CONTROL_PLANE_TUNNEL_ID}
+      MCP_SERVER_URL: http://project-memory-proxy:8000/mcp
+      MCP_STARTUP_WAIT_TIMEOUT: 120s
+      LOG_LEVEL: info
+      LOG_FORMAT: json
+    depends_on:
+      - project-memory-proxy
+    networks:
+      - tunnel_net
+      - egress_net
+
+
+volumes:
+  project-memory-proxy-data:
+  basic-memory-data:
+  basic-memory-config:
+
+
+networks:
+  # project-memory-proxy <-> basic-memory
+  memory_net:
+    internal: true
+  # openai-tunnel <-> project-memory-proxy
+  tunnel_net:
+    internal: true
+  # Internet access ONLY for openai-tunnel
+  egress_net:

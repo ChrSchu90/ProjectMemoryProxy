@@ -428,6 +428,9 @@ FodyWeavers.xsd
 *.msm
 *.msp
 
+# Examples
+!examples/.env
+
 # JetBrains
 .idea/
 *.iws
