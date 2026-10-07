@@ -326,23 +326,14 @@ internal sealed class EfProjectRegistry : IProjectRegistry
 
     private static ContextId CreateContextId(BindingType bindingType, string bindingName)
     {
-        string? contextIdValue;
-        switch (bindingType)
+        try
         {
-            case BindingType.ChatGptProject:
-                contextIdValue = $"chatgpt-project:{bindingName}";
-                break;
-            case BindingType.GitRepository:
-                contextIdValue = $"git:{bindingName}";
-                break;
-            default:
-                throw new InvalidOperationException($"Persisted context binding type '{bindingType}' is unsupported.");
+            return ContextId.Create(bindingType, bindingName);
         }
-
-        if (!ContextId.TryParse(contextIdValue, out var contextId))
-            throw new InvalidOperationException($"Persisted context binding '{contextIdValue}' is invalid.");
-
-        return contextId;
+        catch (ArgumentException exception)
+        {
+            throw new InvalidOperationException($"Persisted context binding type '{bindingType}' and name '{bindingName}' are invalid.", exception);
+        }
     }
 
     private static bool IsUniqueConstraintViolation(DbUpdateException exception)

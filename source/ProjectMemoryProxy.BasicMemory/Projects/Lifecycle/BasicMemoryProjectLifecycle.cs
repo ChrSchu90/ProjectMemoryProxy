@@ -2,11 +2,11 @@ namespace ProjectMemoryProxy.BasicMemory.Projects.Lifecycle;
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using ModelContextProtocol.Protocol;
+using ProjectMemoryProxy.BasicMemory;
+using ProjectMemoryProxy.BasicMemory.Client;
 using ProjectMemoryProxy.BasicMemory.Discovery;
 using ProjectMemoryProxy.BasicMemory.Projects.Directory;
 
@@ -16,9 +16,6 @@ using ProjectMemoryProxy.BasicMemory.Projects.Directory;
 internal sealed class BasicMemoryProjectLifecycle : IBasicMemoryProjectLifecycle
 {
     #region Static Fields
-
-    private const string CreateMemoryProjectToolName = "create_memory_project";
-    private const string DeleteProjectToolName = "delete_project";
 
     #endregion
 
@@ -53,9 +50,7 @@ internal sealed class BasicMemoryProjectLifecycle : IBasicMemoryProjectLifecycle
         ArgumentException.ThrowIfNullOrWhiteSpace(memoryProjectName);
         ArgumentException.ThrowIfNullOrWhiteSpace(memoryProjectPath);
 
-        await _toolCatalog.InitializeAsync(cancellationToken).ConfigureAwait(false);
-        if (!_toolCatalog.TryGetTool(CreateMemoryProjectToolName, out var tool))
-            throw new InvalidOperationException($"Basic Memory does not expose the required '{CreateMemoryProjectToolName}' project lifecycle tool.");
+        var tool = await _toolCatalog.GetRequiredToolAsync(BasicMemoryToolNames.CreateMemoryProject, cancellationToken).ConfigureAwait(false);
 
         var result = await tool.CallAsync(new Dictionary<string, object?>
         {
@@ -65,21 +60,21 @@ internal sealed class BasicMemoryProjectLifecycle : IBasicMemoryProjectLifecycle
             ["output_format"] = "json"
         }, cancellationToken: cancellationToken).ConfigureAwait(false);
 
-        var payload = GetResultPayload(result);
+        var payload = BasicMemoryToolResultReader.GetObjectPayload(result, BasicMemoryToolNames.CreateMemoryProject);
         if (payload.TryGetProperty("error", out var errorElement) && errorElement.ValueKind == JsonValueKind.String)
-            throw new InvalidOperationException($"Basic Memory '{CreateMemoryProjectToolName}' failed with error '{errorElement.GetString()}'.");
+            throw new InvalidOperationException($"Basic Memory '{BasicMemoryToolNames.CreateMemoryProject}' failed with error '{errorElement.GetString()}'.");
 
-        var returnedName = GetRequiredString(payload, "name");
-        var externalIdValue = GetRequiredString(payload, "external_id");
-        var returnedPath = GetRequiredString(payload, "path");
-        var created = GetRequiredBoolean(payload, "created");
-        var alreadyExists = GetRequiredBoolean(payload, "already_exists");
+        var returnedName = BasicMemoryToolResultReader.GetRequiredString(payload, "name", BasicMemoryToolNames.CreateMemoryProject);
+        var externalIdValue = BasicMemoryToolResultReader.GetRequiredString(payload, "external_id", BasicMemoryToolNames.CreateMemoryProject);
+        var returnedPath = BasicMemoryToolResultReader.GetRequiredString(payload, "path", BasicMemoryToolNames.CreateMemoryProject);
+        var created = BasicMemoryToolResultReader.GetRequiredBoolean(payload, "created", BasicMemoryToolNames.CreateMemoryProject);
+        var alreadyExists = BasicMemoryToolResultReader.GetRequiredBoolean(payload, "already_exists", BasicMemoryToolNames.CreateMemoryProject);
 
         if (created == alreadyExists)
-            throw new InvalidOperationException($"Basic Memory '{CreateMemoryProjectToolName}' returned inconsistent creation flags.");
+            throw new InvalidOperationException($"Basic Memory '{BasicMemoryToolNames.CreateMemoryProject}' returned inconsistent creation flags.");
 
         if (!Guid.TryParse(externalIdValue, out var memoryProjectId) || memoryProjectId == Guid.Empty)
-            throw new InvalidOperationException($"Basic Memory '{CreateMemoryProjectToolName}' returned invalid external_id '{externalIdValue}'.");
+            throw new InvalidOperationException($"Basic Memory '{BasicMemoryToolNames.CreateMemoryProject}' returned invalid external_id '{externalIdValue}'.");
 
         var status = created ? BasicMemoryProjectCreationStatus.Created : BasicMemoryProjectCreationStatus.AlreadyExists;
         return new BasicMemoryProjectCreationResult(status, new BasicMemoryProjectInfo(memoryProjectId, returnedName), returnedPath);
@@ -90,9 +85,7 @@ internal sealed class BasicMemoryProjectLifecycle : IBasicMemoryProjectLifecycle
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(memoryProjectName);
 
-        await _toolCatalog.InitializeAsync(cancellationToken).ConfigureAwait(false);
-        if (!_toolCatalog.TryGetTool(DeleteProjectToolName, out var tool))
-            throw new InvalidOperationException($"Basic Memory does not expose the required '{DeleteProjectToolName}' project lifecycle tool.");
+        var tool = await _toolCatalog.GetRequiredToolAsync(BasicMemoryToolNames.DeleteProject, cancellationToken).ConfigureAwait(false);
 
         var result = await tool.CallAsync(new Dictionary<string, object?>
         {
@@ -100,55 +93,13 @@ internal sealed class BasicMemoryProjectLifecycle : IBasicMemoryProjectLifecycle
             ["delete_notes"] = deleteNotes
         }, cancellationToken: cancellationToken).ConfigureAwait(false);
 
-        if (result.IsError is true)
-        {
-            var errorText = string.Join(Environment.NewLine, result.Content.OfType<TextContentBlock>().Select(block => block.Text));
-            throw new InvalidOperationException(string.IsNullOrWhiteSpace(errorText) ? $"Basic Memory '{DeleteProjectToolName}' returned an MCP tool error." : $"Basic Memory '{DeleteProjectToolName}' returned an MCP tool error: {errorText}");
-        }
+        BasicMemoryToolResultReader.ThrowIfError(result, BasicMemoryToolNames.DeleteProject);
     }
 
     #endregion
 
     #region Private Methods
 
-    private static JsonElement GetResultPayload(CallToolResult result)
-    {
-        if (result.IsError is true)
-        {
-            var errorText = string.Join(Environment.NewLine, result.Content.OfType<TextContentBlock>().Select(block => block.Text));
-            throw new InvalidOperationException(string.IsNullOrWhiteSpace(errorText) ?
-                                                    $"Basic Memory '{CreateMemoryProjectToolName}' returned an MCP tool error." :
-                                                    $"Basic Memory '{CreateMemoryProjectToolName}' returned an MCP tool error: {errorText}");
-        }
-
-        if (result.StructuredContent is not { } structuredContent)
-            throw new InvalidOperationException($"Basic Memory '{CreateMemoryProjectToolName}' returned no structured content.");
-
-        var payload = structuredContent;
-        if (payload.ValueKind == JsonValueKind.Object && payload.TryGetProperty("result", out var wrappedResult))
-            payload = wrappedResult;
-
-        if (payload.ValueKind != JsonValueKind.Object)
-            throw new InvalidOperationException($"Basic Memory '{CreateMemoryProjectToolName}' returned an unsupported structured result.");
-
-        return payload;
-    }
-
-    private static string GetRequiredString(JsonElement element, string propertyName)
-    {
-        if (!element.TryGetProperty(propertyName, out var property) || property.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(property.GetString()))
-            throw new InvalidOperationException($"Basic Memory '{CreateMemoryProjectToolName}' returned no valid '{propertyName}' value.");
-
-        return property.GetString()!;
-    }
-
-    private static bool GetRequiredBoolean(JsonElement element, string propertyName)
-    {
-        if (!element.TryGetProperty(propertyName, out var property) || property.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
-            throw new InvalidOperationException($"Basic Memory '{CreateMemoryProjectToolName}' returned no valid '{propertyName}' value.");
-
-        return property.GetBoolean();
-    }
 
     #endregion
 }

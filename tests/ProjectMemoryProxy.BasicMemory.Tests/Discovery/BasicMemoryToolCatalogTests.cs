@@ -79,6 +79,23 @@ public sealed class BasicMemoryToolCatalogTests
     }
 
     /// <summary>
+    /// Verifies that required-tool lookup initializes the catalog and returns the exact upstream MCP tool.
+    /// </summary>
+    [TestMethod]
+    public async Task GetRequiredToolAsyncInitializesAndReturnsTool()
+    {
+        await using var fixture = await CreateTestToolAsync();
+        var client = new StubBasicMemoryClient([fixture.Tool]);
+        using var catalog = new BasicMemoryToolCatalog(client, NullLogger<BasicMemoryToolCatalog>.Instance);
+
+        var result = await catalog.GetRequiredToolAsync(fixture.Tool.ProtocolTool.Name);
+
+        Assert.AreSame(fixture.Tool, result);
+        Assert.IsTrue(catalog.IsInitialized);
+        Assert.AreEqual(1, client.ListToolsCallCount);
+    }
+
+    /// <summary>
     /// Verifies that tool lookup uses the exact canonical upstream MCP tool name.
     /// </summary>
     [TestMethod]

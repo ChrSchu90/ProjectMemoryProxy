@@ -85,8 +85,8 @@ public sealed class ProjectMemoryProxyDbContext : DbContext
             var designTimeRoot = Path.Combine(Path.GetTempPath(), "ProjectMemoryProxy.EFDesign", Path.GetRandomFileName());
             Directory.CreateDirectory(designTimeRoot);
 
-            var databasePath = Path.Combine(designTimeRoot, "projectmemoryproxy.db");
-            var options = ContextOptions.Create(databasePath, pooling: false);
+            var databasePaths = new DatabasePaths(designTimeRoot);
+            var options = ContextOptions.Create(databasePaths.DatabasePath, pooling: false);
             return new ProjectMemoryProxyDbContext(options);
         }
 

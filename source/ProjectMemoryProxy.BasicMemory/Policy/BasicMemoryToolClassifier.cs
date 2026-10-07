@@ -3,6 +3,7 @@ namespace ProjectMemoryProxy.BasicMemory.Policy;
 using System;
 using System.Collections.Generic;
 using System.Text.Json;
+using ProjectMemoryProxy.BasicMemory;
 
 /// <summary>
 /// Classifies discovered Basic Memory tools according to the approved routing policy.
@@ -18,21 +19,21 @@ internal sealed class BasicMemoryToolClassifier
 
     private static readonly HashSet<string> ProjectLifecycleTools = new(StringComparer.Ordinal)
     {
-        "create_memory_project",
-        "delete_project",
-        "list_memory_projects"
+        BasicMemoryToolNames.CreateMemoryProject,
+        BasicMemoryToolNames.DeleteProject,
+        BasicMemoryToolNames.ListMemoryProjects
     };
 
     private static readonly HashSet<string> GlobalAllowlistedTools = new(StringComparer.Ordinal)
     {
-        "basic_memory_diagnostics"
+        BasicMemoryToolNames.Diagnostics
     };
 
     private static readonly HashSet<string> IntentionallyBlockedTools = new(StringComparer.Ordinal)
     {
-        "list_workspaces",  // Cloud workspace/tenant routing is outside the local-only ProjectMemoryProxy MVP.
-        "fetch",            // OpenAI compatibility tool; its standard fetch(id) contract cannot carry the explicit context_id required for fail-closed project routing.
-        "search"            // OpenAI compatibility tool; its standard search(query) contract cannot carry the explicit context_id required for fail-closed project routing.
+        BasicMemoryToolNames.ListWorkspaces,  // Cloud workspace/tenant routing is outside the local-only ProjectMemoryProxy MVP.
+        BasicMemoryToolNames.Fetch,           // OpenAI compatibility tool; its standard fetch(id) contract cannot carry the explicit context_id required for fail-closed project routing.
+        BasicMemoryToolNames.Search           // OpenAI compatibility tool; its standard search(query) contract cannot carry the explicit context_id required for fail-closed project routing.
     };
 
     #endregion

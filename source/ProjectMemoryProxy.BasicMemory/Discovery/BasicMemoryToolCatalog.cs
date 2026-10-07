@@ -105,6 +105,20 @@ internal sealed class BasicMemoryToolCatalog : IDisposable
     }
 
     /// <summary>
+    /// Gets a required Basic Memory tool by its exact upstream MCP tool name, initializing the catalog when necessary.
+    /// </summary>
+    public async Task<McpClientTool> GetRequiredToolAsync(string name, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+
+        await InitializeAsync(cancellationToken).ConfigureAwait(false);
+        if (!TryGetTool(name, out var tool))
+            throw new InvalidOperationException($"Basic Memory does not expose the required '{name}' MCP tool.");
+
+        return tool;
+    }
+
+    /// <summary>
     /// Attempts to get a Basic Memory tool by its exact upstream MCP tool name.
     /// </summary>
     public bool TryGetTool(string name, [NotNullWhen(true)] out McpClientTool? tool)

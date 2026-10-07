@@ -13,8 +13,6 @@ internal sealed class PublicToolInputSchemaRewriter
 {
     #region Static Fields
 
-    private const string ContextIdPropertyName = "context_id";
-
     private static readonly HashSet<string> UnsupportedTopLevelKeywords = new(StringComparer.Ordinal)
     {
         "$ref",
@@ -85,7 +83,7 @@ internal sealed class PublicToolInputSchemaRewriter
             properties.Remove(propertyName);
         }
 
-        properties[ContextIdPropertyName] = new JsonObject
+        properties[RoutingPropertyNames.ContextId] = new JsonObject
         {
             ["type"] = "string",
             ["description"] = "Canonical technical context identifier used by ProjectMemoryProxy for server-controlled project routing."
@@ -131,7 +129,7 @@ internal sealed class PublicToolInputSchemaRewriter
             return false;
         }
 
-        if (properties.TryGetProperty(ContextIdPropertyName, out _))
+        if (properties.TryGetProperty(RoutingPropertyNames.ContextId, out _))
         {
             return false;
         }
@@ -159,7 +157,7 @@ internal sealed class PublicToolInputSchemaRewriter
             if (requiredProperty.ValueKind != JsonValueKind.String)
                 return false;
 
-            if (requiredProperty.GetString() == ContextIdPropertyName)
+            if (requiredProperty.GetString() == RoutingPropertyNames.ContextId)
                 return false;
         }
 
@@ -170,8 +168,8 @@ internal sealed class PublicToolInputSchemaRewriter
     {
         return projectSelector switch
         {
-            ProjectSelectorKind.ProjectId => properties.TryGetProperty("project_id", out _),
-            ProjectSelectorKind.ProjectName => properties.TryGetProperty("project", out _),
+            ProjectSelectorKind.ProjectId => properties.TryGetProperty(RoutingPropertyNames.ProjectId, out _),
+            ProjectSelectorKind.ProjectName => properties.TryGetProperty(RoutingPropertyNames.Project, out _),
             _ => false
         };
     }
@@ -195,7 +193,7 @@ internal sealed class PublicToolInputSchemaRewriter
             }
         }
 
-        publicRequired.Add(ContextIdPropertyName);
+        publicRequired.Add(RoutingPropertyNames.ContextId);
         root["required"] = publicRequired;
     }
 

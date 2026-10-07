@@ -16,6 +16,11 @@ public sealed class ProjectMemoryProxyOptions
     /// </summary>
     public const string SectionName = "ProjectMemoryProxy";
 
+    /// <summary>
+    /// Gets the default minimum Serilog event level.
+    /// </summary>
+    public const string DefaultLogLevel = "Information";
+
     #endregion
 
     #region Private Fields
@@ -31,7 +36,7 @@ public sealed class ProjectMemoryProxyOptions
     /// <summary>
     /// Gets or initializes the minimum Serilog event level.
     /// </summary>
-    public string LogLevel { get; init; } = "Information";
+    public string LogLevel { get; init; } = DefaultLogLevel;
 
     /// <summary>
     /// The directory where the server will store its data, including the SQLite database.

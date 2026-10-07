@@ -60,6 +60,23 @@ public sealed record ContextId
     #region Public Methods
 
     /// <summary>
+    /// Creates a canonical technical context identifier from its persisted binding components.
+    /// </summary>
+    /// <param name="bindingType">The binding type.</param>
+    /// <param name="bindingName">The opaque binding-specific identifier.</param>
+    /// <returns>The canonical context identifier.</returns>
+    public static ContextId Create(BindingType bindingType, string bindingName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(bindingName);
+
+        var value = $"{GetBindingTypeIdentifier(bindingType)}:{bindingName}";
+        if (!TryParse(value, out var contextId))
+            throw new ArgumentException("The binding name does not form a valid canonical context identifier.", nameof(bindingName));
+
+        return contextId;
+    }
+
+    /// <summary>
     /// Attempts to parse a canonical technical context identifier.
     /// </summary>
     /// <param name="value">The context identifier.</param>

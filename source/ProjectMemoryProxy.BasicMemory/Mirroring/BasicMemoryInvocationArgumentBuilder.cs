@@ -14,12 +14,6 @@ using ProjectMemoryProxy.Core.Routing;
 /// </summary>
 internal sealed class BasicMemoryInvocationArgumentBuilder
 {
-    #region Static Fields
-
-    private const string ContextIdPropertyName = "context_id";
-
-    #endregion
-
     #region Private Fields
 
     private readonly RoutingManager _routingManager;
@@ -70,15 +64,15 @@ internal sealed class BasicMemoryInvocationArgumentBuilder
                 throw new McpProtocolException($"Required argument '{requiredProperty}' is missing.", McpErrorCode.InvalidParams);
         }
 
-        if (!arguments.TryGetValue(ContextIdPropertyName, out var contextIdElement) || contextIdElement.ValueKind != JsonValueKind.String)
-            throw new McpProtocolException($"Argument '{ContextIdPropertyName}' must be a string.", McpErrorCode.InvalidParams);
+        if (!arguments.TryGetValue(RoutingPropertyNames.ContextId, out var contextIdElement) || contextIdElement.ValueKind != JsonValueKind.String)
+            throw new McpProtocolException($"Argument '{RoutingPropertyNames.ContextId}' must be a string.", McpErrorCode.InvalidParams);
 
         if (!ContextId.TryParse(contextIdElement.GetString(), out var contextId))
-            throw new McpProtocolException($"Argument '{ContextIdPropertyName}' is not a valid context identifier.", McpErrorCode.InvalidParams);
+            throw new McpProtocolException($"Argument '{RoutingPropertyNames.ContextId}' is not a valid context identifier.", McpErrorCode.InvalidParams);
 
         var resolution = await _routingManager.ResolveContextAsync(contextId, cancellationToken).ConfigureAwait(false);
         if (resolution.Status != ContextResolutionStatus.Resolved)
-            throw new McpProtocolException($"Argument '{ContextIdPropertyName}' does not resolve to an active project routing.", McpErrorCode.InvalidParams);
+            throw new McpProtocolException($"Argument '{RoutingPropertyNames.ContextId}' does not resolve to an active project routing.", McpErrorCode.InvalidParams);
 
         if (resolution.MemoryProjectId is not { } memoryProjectId || string.IsNullOrWhiteSpace(resolution.MemoryProjectName))
             throw new InvalidOperationException("A resolved project routing must contain both the Basic Memory project identifier and project name.");
@@ -86,7 +80,7 @@ internal sealed class BasicMemoryInvocationArgumentBuilder
         var upstreamArguments = new Dictionary<string, object?>(StringComparer.Ordinal);
         foreach (var argument in arguments)
         {
-            if (argument.Key == ContextIdPropertyName)
+            if (argument.Key == RoutingPropertyNames.ContextId)
                 continue;
 
             upstreamArguments.Add(argument.Key, argument.Value.Clone());
@@ -95,15 +89,15 @@ internal sealed class BasicMemoryInvocationArgumentBuilder
         switch (routingAnalysis.ProjectSelector)
         {
             case ProjectSelectorKind.ProjectId:
-                upstreamArguments["project_id"] = memoryProjectId.ToString("D");
+                upstreamArguments[RoutingPropertyNames.ProjectId] = memoryProjectId.ToString("D");
                 if (routingAnalysis.InjectProjectName)
                 {
-                    upstreamArguments["project"] = resolution.MemoryProjectName;
+                    upstreamArguments[RoutingPropertyNames.Project] = resolution.MemoryProjectName;
                 }
 
                 break;
             case ProjectSelectorKind.ProjectName:
-                upstreamArguments["project"] = resolution.MemoryProjectName;
+                upstreamArguments[RoutingPropertyNames.Project] = resolution.MemoryProjectName;
                 break;
             default:
                 throw new InvalidOperationException("An automatically routable tool must use a supported project selector.");
@@ -133,8 +127,8 @@ internal sealed class BasicMemoryInvocationArgumentBuilder
             propertyNames.Add(property.Name);
         }
 
-        if (!propertyNames.Contains(ContextIdPropertyName))
-            throw new ArgumentException($"The public input schema must expose '{ContextIdPropertyName}'.", nameof(publicInputSchema));
+        if (!propertyNames.Contains(RoutingPropertyNames.ContextId))
+            throw new ArgumentException($"The public input schema must expose '{RoutingPropertyNames.ContextId}'.", nameof(publicInputSchema));
 
         return propertyNames;
     }

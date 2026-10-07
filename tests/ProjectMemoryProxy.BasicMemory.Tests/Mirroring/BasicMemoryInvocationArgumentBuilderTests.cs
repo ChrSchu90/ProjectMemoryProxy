@@ -3,7 +3,6 @@ namespace ProjectMemoryProxy.BasicMemory.Tests.Mirroring;
 using System;
 using System.Collections.Generic;
 using System.Text.Json;
-using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -154,12 +153,7 @@ public sealed class BasicMemoryInvocationArgumentBuilderTests
     {
         return new RoutingSchemaAnalysis(RoutingSchemaStatus.AutomaticallyRoutable, ProjectSelectorKind.ProjectName, InjectProjectName: true, ["project"]);
     }
-
-    private static RoutingSchemaAnalysis CreateProjectIdWithRequiredProjectNameAnalysis()
-    {
-        return new RoutingSchemaAnalysis(RoutingSchemaStatus.AutomaticallyRoutable, ProjectSelectorKind.ProjectId, InjectProjectName: true, ["project", "project_id"]);
-    }
-
+    
     private static JsonElement CreateContextOnlySchema()
     {
         return ParseJson(
@@ -188,102 +182,6 @@ public sealed class BasicMemoryInvocationArgumentBuilderTests
     #endregion
 
     #region Test Classes
-
-    private sealed class StubProjectRegistry : IProjectRegistry
-    {
-        #region Private Fields
-
-        private readonly Func<ContextId, CancellationToken, Task<ProjectRoute?>> _findRoute;
-
-        #endregion
-
-        #region Constructors
-
-        public StubProjectRegistry(ProjectRoute? route)
-            : this((_, _) => Task.FromResult(route))
-        {
-        }
-
-        public StubProjectRegistry(Func<ContextId, CancellationToken, Task<ProjectRoute?>> findRoute)
-        {
-            _findRoute = findRoute ?? throw new ArgumentNullException(nameof(findRoute));
-        }
-
-        #endregion
-
-        #region Properties
-
-        public int FindRouteCallCount { get; private set; }
-
-        #endregion
-
-        #region Public Methods
-
-        public Task<ProjectRoute?> FindRouteAsync(ContextId contextId, CancellationToken cancellationToken = default)
-        {
-            FindRouteCallCount++;
-            return _findRoute(contextId, cancellationToken);
-        }
-
-        public Task<ProjectRouting?> FindByMemoryProjectIdAsync(Guid memoryProjectId, CancellationToken cancellationToken = default)
-        {
-            throw new NotSupportedException();
-        }
-
-        public Task<ProjectRouting?> FindByMemoryProjectNameAsync(string memoryProjectName, CancellationToken cancellationToken = default)
-        {
-            throw new NotSupportedException();
-        }
-
-        public Task<ProjectRouting> CreateAsync(Guid memoryProjectId, string memoryProjectName, Status status, CancellationToken cancellationToken = default)
-        {
-            throw new NotSupportedException();
-        }
-
-        public Task<ContextBinding?> FindBindingAsync(ContextId contextId, CancellationToken cancellationToken = default)
-        {
-            throw new NotSupportedException();
-        }
-
-        public Task<ContextBinding> CreateBindingAsync(ContextId contextId, Guid memoryProjectId, Status status, CancellationToken cancellationToken = default)
-        {
-            throw new NotSupportedException();
-        }
-
-        public Task<bool> TryUpdateProjectStatusAsync(Guid memoryProjectId, Status expectedStatus, Status newStatus, CancellationToken cancellationToken = default)
-        {
-            throw new NotSupportedException();
-        }
-
-        public Task<bool> TryUpdateBindingStatusAsync(ContextId contextId, Status expectedStatus, Status newStatus, CancellationToken cancellationToken = default)
-        {
-            throw new NotSupportedException();
-        }
-
-        public Task<bool> TryRemoveBindingAsync(ContextId contextId, CancellationToken cancellationToken = default)
-        {
-            throw new NotSupportedException();
-        }
-
-        public Task<bool> TryRemoveProjectAsync(Guid memoryProjectId, CancellationToken cancellationToken = default)
-        {
-            throw new NotSupportedException();
-        }
-
-        public Task<IReadOnlyList<ProjectRouting>> ListProjectsAsync(CancellationToken cancellationToken = default)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            return Task.FromResult<IReadOnlyList<ProjectRouting>>(Array.Empty<ProjectRouting>());
-        }
-        
-        public Task<IReadOnlyList<ContextBinding>> ListBindingsAsync(CancellationToken cancellationToken = default)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            return Task.FromResult<IReadOnlyList<ContextBinding>>(Array.Empty<ContextBinding>());
-        }
-
-        #endregion
-    }
-
+    
     #endregion
 }

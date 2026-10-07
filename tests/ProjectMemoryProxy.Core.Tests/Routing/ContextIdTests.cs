@@ -1,5 +1,6 @@
 namespace ProjectMemoryProxy.Core.Tests.Routing;
 
+using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using ProjectMemoryProxy.Core.Routing;
 
@@ -23,6 +24,34 @@ public sealed class ContextIdTests
 
     #region Tests
 
+
+    /// <summary>
+    /// Verifies that binding components are formatted into the canonical technical context identifier.
+    /// </summary>
+    [TestMethod]
+    [DataRow(BindingType.ChatGptProject, "chatty-mcp-and-aiharborvm", "chatgpt-project:chatty-mcp-and-aiharborvm")]
+    [DataRow(BindingType.GitRepository, "github.com/ChrSchu90/ProjectMemoryProxy", "git:github.com/ChrSchu90/ProjectMemoryProxy")]
+    public void CreateReturnsCanonicalContextId(BindingType bindingType, string bindingName, string expected)
+    {
+        var contextId = ContextId.Create(bindingType, bindingName);
+
+        Assert.AreEqual(bindingType, contextId.BindingType);
+        Assert.AreEqual(bindingName, contextId.BindingName);
+        Assert.AreEqual(expected, contextId.ToString());
+    }
+
+    /// <summary>
+    /// Verifies that invalid binding names are rejected when creating a canonical context identifier.
+    /// </summary>
+    [TestMethod]
+    [DataRow("")]
+    [DataRow(" ")]
+    [DataRow(" repository")]
+    [DataRow("repository ")]
+    public void CreateRejectsInvalidBindingNames(string bindingName)
+    {
+        Assert.ThrowsExactly<ArgumentException>(() => ContextId.Create(BindingType.GitRepository, bindingName));
+    }
 
     /// <summary>
     /// Verifies that a canonical ChatGPT project context is parsed into its expected type and name.

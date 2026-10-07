@@ -14,8 +14,8 @@ internal sealed class RoutingSchemaGuard
 
     private static readonly HashSet<string> CanonicalRoutingSelectorNames = new(StringComparer.Ordinal)
     {
-        "project",
-        "project_id",
+        RoutingPropertyNames.Project,
+        RoutingPropertyNames.ProjectId,
         "projects",
         "workspace",
         "workspace_id",
@@ -36,7 +36,7 @@ internal sealed class RoutingSchemaGuard
 
     private static readonly HashSet<string> NormalizedRoutingSelectorNames = new(StringComparer.Ordinal)
     {
-        "project",
+        RoutingPropertyNames.Project,
         "projectid",
         "projects",
         "workspace",
@@ -48,7 +48,7 @@ internal sealed class RoutingSchemaGuard
 
     private static readonly HashSet<string> RoutingTokens = new(StringComparer.OrdinalIgnoreCase)
     {
-        "project",
+        RoutingPropertyNames.Project,
         "projects",
         "workspace",
         "tenant"
@@ -91,14 +91,14 @@ internal sealed class RoutingSchemaGuard
                 return Blocked(RoutingSchemaStatus.RequiredUnsupportedSelector, state);
         }
 
-        var hasProjectId = state.RoutingSelectors.Contains("project_id");
-        var hasProject = state.RoutingSelectors.Contains("project");
+        var hasProjectId = state.RoutingSelectors.Contains(RoutingPropertyNames.ProjectId);
+        var hasProject = state.RoutingSelectors.Contains(RoutingPropertyNames.Project);
         if (!hasProjectId && !hasProject)
             return Blocked(RoutingSchemaStatus.NoProjectSelector, state);
 
         if (hasProjectId)
         {
-            return new RoutingSchemaAnalysis(RoutingSchemaStatus.AutomaticallyRoutable, ProjectSelectorKind.ProjectId, InjectProjectName: hasProject && state.RequiredProperties.Contains("project"), GetSuppressedProperties(state));
+            return new RoutingSchemaAnalysis(RoutingSchemaStatus.AutomaticallyRoutable, ProjectSelectorKind.ProjectId, InjectProjectName: hasProject && state.RequiredProperties.Contains(RoutingPropertyNames.Project), GetSuppressedProperties(state));
         }
 
         return new RoutingSchemaAnalysis(RoutingSchemaStatus.AutomaticallyRoutable, ProjectSelectorKind.ProjectName, InjectProjectName: true, GetSuppressedProperties(state));

@@ -32,7 +32,7 @@ builder.Services.AddSerilog();
 builder.Services.AddSingleton(logLevelSwitch);
 
 // Set log level from configuration, defaulting to Information if not configured or invalid.
-var configuredLogLevel = builder.Configuration[$"{ProjectMemoryProxyOptions.SectionName}:{nameof(ProjectMemoryProxyOptions.LogLevel)}"] ?? "Information";
+var configuredLogLevel = builder.Configuration[$"{ProjectMemoryProxyOptions.SectionName}:{nameof(ProjectMemoryProxyOptions.LogLevel)}"] ?? ProjectMemoryProxyOptions.DefaultLogLevel;
 if (Enum.TryParse<LogEventLevel>(configuredLogLevel, true, out var minimumLogLevel))
     logLevelSwitch.MinimumLevel = minimumLogLevel;
 else
