@@ -5,7 +5,7 @@ services:
     environment:
       BASIC_MEMORY_FORCE_LOCAL: true
       BASIC_MEMORY_NO_PROMOS: true
-      BASIC_MEMORY_DEFAULT_PROJECT: main
+      BASIC_MEMORY_DEFAULT_PROJECT: default-quarantine
       BASIC_MEMORY_INDEX_CHANGES: true
       BASIC_MEMORY_INDEX_DELAY: 1000
       BASIC_MEMORY_SEMANTIC_SEARCH_ENABLED: true
@@ -61,10 +61,10 @@ services:
       LOG_LEVEL: info
       LOG_FORMAT: json
     depends_on:
-      - project-memory-proxy
+      project-memory-proxy:
+        condition: service_healthy
     networks:
       - tunnel_net
-      - egress_net
 
 
 volumes:
@@ -74,11 +74,11 @@ volumes:
 
 
 networks:
-  # project-memory-proxy <-> basic-memory
+  # Basic Memory <-> ProjectMemoryProxy.
+  # Normal bridge network so Basic Memory can access the Internet
+  # for model downloads and other required upstream resources.
   memory_net:
-    internal: true
-  # openai-tunnel <-> project-memory-proxy
+
+  # ProjectMemoryProxy <-> OpenAI Tunnel.
+  # Normal bridge network so the tunnel can reach the OpenAI control plane.
   tunnel_net:
-    internal: true
-  # Internet access ONLY for openai-tunnel
-  egress_net:

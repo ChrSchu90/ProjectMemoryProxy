@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Reflection;
 using System.Threading;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.DependencyInjection;
 using ModelContextProtocol.AspNetCore;
 using ProjectMemoryProxy.BasicMemory;
@@ -55,7 +56,7 @@ builder.Services.AddBasicMemory();
 builder.Services.AddHostedService<BasicMemoryStartupHostedService>();
 
 // Add the MCP services: the transport to use (http) and the tools to register.
-var mcpServerBuilder = builder.Services
+builder.Services
     .AddMcpServer()
     .WithHttpTransport(options =>
     {
@@ -63,15 +64,21 @@ var mcpServerBuilder = builder.Services
         // server-to-client requests like sampling or elicitation.
         // See https://csharp.sdk.modelcontextprotocol.io/concepts/transports/transports.html for details.
         options.SessionMode = HttpServerSessionMode.Stateless;
-    });
+    })
+    .WithTools<RoutingTools>()
+    .WithTools<ControlPlaneTools>();
 
-mcpServerBuilder.WithTools<RoutingTools>();
-mcpServerBuilder.WithTools<ControlPlaneTools>();
+// Register the health checks for liveness and readiness probes.
+builder.Services.AddHealthChecks().AddCheck<BasicMemoryHealthCheck>("basic-memory", tags: ["ready"]);
 
 var app = builder.Build();
 
 // Ensure the lifecycle database is fully initialized or migrated before the MCP endpoint starts.
 await app.Services.MigrateDatabaseAsync();
+
+// Map the health check endpoints for liveness and readiness probes.
+app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false });
+app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = healthCheck => healthCheck.Tags.Contains("ready") });
 
 app.MapMcp();
 app.Run();

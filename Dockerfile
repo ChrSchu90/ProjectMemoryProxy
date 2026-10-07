@@ -32,6 +32,7 @@ FROM alpine:3.24@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec4
 
 RUN apk add --upgrade --no-cache \
         ca-certificates-bundle \
+        curl \
         libgcc \
         libssl3 \
         libstdc++ \
@@ -48,6 +49,9 @@ ENV \
     DOTNET_RUNNING_IN_CONTAINER=true \
     DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=true \
     ProjectMemoryProxy__DataDirectory=/data
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+    CMD curl --fail --silent http://127.0.0.1:8000/health/ready > /dev/null || exit 1
 
 EXPOSE 8000
 VOLUME ["/data"]

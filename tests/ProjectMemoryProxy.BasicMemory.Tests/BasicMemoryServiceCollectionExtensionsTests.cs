@@ -1,11 +1,5 @@
 namespace ProjectMemoryProxy.BasicMemory.Tests;
 
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Hosting.Server;
@@ -20,12 +14,19 @@ using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 using ProjectMemoryProxy.BasicMemory.Client;
 using ProjectMemoryProxy.BasicMemory.Discovery;
+using ProjectMemoryProxy.BasicMemory.Health;
 using ProjectMemoryProxy.BasicMemory.Mirroring;
 using ProjectMemoryProxy.BasicMemory.Projects;
 using ProjectMemoryProxy.BasicMemory.Projects.Directory;
 using ProjectMemoryProxy.BasicMemory.Projects.Lifecycle;
 using ProjectMemoryProxy.Core.Configuration;
 using ProjectMemoryProxy.Core.Routing;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net;
+using System.Threading;
+using System.Threading.Tasks;
 
 /// <summary>
 /// Tests for <see cref="BasicMemoryServiceCollectionExtensions"/>
@@ -76,6 +77,7 @@ public sealed class BasicMemoryServiceCollectionExtensionsTests
         await using var serviceProvider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true });
         Assert.IsNotNull(serviceProvider.GetRequiredService<IBasicMemoryClient>());
         Assert.IsNotNull(serviceProvider.GetRequiredService<BasicMemoryToolCatalog>());
+        Assert.IsNotNull(serviceProvider.GetRequiredService<IBasicMemoryHealthProbe>());
         Assert.IsNotNull(serviceProvider.GetRequiredService<BasicMemoryMirroredToolCatalog>());
         Assert.IsNotNull(serviceProvider.GetRequiredService<IBasicMemoryProjectDirectory>());
         Assert.IsNotNull(serviceProvider.GetRequiredService<IBasicMemoryProjectLifecycle>());

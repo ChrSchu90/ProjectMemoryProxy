@@ -9,6 +9,7 @@ using Microsoft.Extensions.Options;
 using ModelContextProtocol.Server;
 using ProjectMemoryProxy.BasicMemory.Client;
 using ProjectMemoryProxy.BasicMemory.Discovery;
+using ProjectMemoryProxy.BasicMemory.Health;
 using ProjectMemoryProxy.BasicMemory.MCP;
 using ProjectMemoryProxy.BasicMemory.Mirroring;
 using ProjectMemoryProxy.BasicMemory.Projects;
@@ -55,6 +56,7 @@ public static class BasicMemoryServiceCollectionExtensions
         services.AddSingleton<BasicMemoryMirroredToolCatalog>();
         services.AddSingleton<BasicMemoryMirroredMcpServerToolRegistry>();
         services.AddSingleton<IPostConfigureOptions<McpServerOptions>, BasicMemoryMcpServerOptionsSetup>();
+        services.AddSingleton<IBasicMemoryHealthProbe, BasicMemoryHealthProbe>();
         return services;
     }
 
