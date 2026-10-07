@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/Solution Items/">
+    <File Path=".dockerignore" />
     <File Path=".editorconfig" />
     <File Path=".gitattributes" />
     <File Path=".github/compose.contract-test.yml" />
@@ -8,6 +9,8 @@
     <File Path=".github/workflows/contract-test.yml" />
     <File Path=".gitignore" />
     <File Path="Directory.Build.props" />
+    <File Path="docker-debug.sh" />
+    <File Path="Dockerfile" />
     <File Path="dotnet-tools.json" />
     <File Path="global.json" />
     <File Path="NuGet.Config" />
