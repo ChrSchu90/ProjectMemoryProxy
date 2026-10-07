@@ -7,4 +7,4 @@ using System.Text.Json.Serialization;
 /// </summary>
 internal sealed record ProjectControlPlaneResult(
     [property: JsonPropertyName("status")] string Status,
-    [property: JsonPropertyName("project")] ProjectRoutingInfo? Project);
+    [property: JsonPropertyName("project"), JsonIgnore(Condition = JsonIgnoreCondition.Never)] ProjectRoutingInfo? Project);

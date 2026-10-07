@@ -1,13 +1,12 @@
 namespace ProjectMemoryProxy.BasicMemory.Projects;
 
-using ProjectMemoryProxy.BasicMemory.Projects.ControlPlane;
-using ProjectMemoryProxy.BasicMemory.Projects.Directory;
-
-using ProjectMemoryProxy.Core.Routing;
 using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using ProjectMemoryProxy.BasicMemory.Projects.ControlPlane;
+using ProjectMemoryProxy.BasicMemory.Projects.Directory;
+using ProjectMemoryProxy.Core.Routing;
 
 /// <summary>
 /// Reconciles the ProjectMemoryProxy routing inventory with the current local Basic Memory projects.

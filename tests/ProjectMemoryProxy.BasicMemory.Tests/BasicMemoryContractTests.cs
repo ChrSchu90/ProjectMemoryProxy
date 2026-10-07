@@ -108,7 +108,7 @@ public sealed class BasicMemoryContractTests
     #region Tests
 
     /// <summary>
-    /// Verifies that a configured live Basic Memory endpoint matches the reviewed upstream contract and that ProjectMemoryProxy exposes exactly the tools allowed by its routing policy.
+    /// Verifies that a configured live Basic Memory endpoint matches the reviewed upstream contract and that the Basic Memory mirror exposes exactly the upstream tools allowed by proxy routing policy.
     /// </summary>
     [TestMethod]
     public async Task LiveBasicMemoryEndpointMatchesExpectedContract()
@@ -165,7 +165,7 @@ public sealed class BasicMemoryContractTests
             .Select(tool => tool.Name)
             .ToArray();
 
-        AssertToolNames(expectedProxyToolNames, proxyTools.Select(tool => tool.Name), "ProjectMemoryProxy tools/list exposure");
+        AssertToolNames(expectedProxyToolNames, proxyTools.Select(tool => tool.Name), "ProjectMemoryProxy Basic Memory mirror exposure");
         var expectedHiddenToolNames = classifications
             .Where(tool => tool.Classification is ToolRoutingClassification.ExplicitAdapter or ToolRoutingClassification.ProjectLifecycle or ToolRoutingClassification.IntentionallyBlocked or ToolRoutingClassification.Blocked)
             .Select(tool => tool.Name)
@@ -475,9 +475,9 @@ public sealed class BasicMemoryContractTests
                 .OrderBy(name => name, StringComparer.Ordinal)
                 .ToArray();
 
-        Console.WriteLine("ProjectMemoryProxy exposure snapshot");
-        Console.WriteLine("====================================");
-        Console.WriteLine($"Proxy tools: {proxyToolNames.Length}");
+        Console.WriteLine("ProjectMemoryProxy Basic Memory mirror snapshot");
+        Console.WriteLine("==============================================");
+        Console.WriteLine($"Mirrored Basic Memory tools: {proxyToolNames.Length}");
 
         foreach (var toolName in proxyToolNames.OrderBy(name => name, StringComparer.Ordinal))
         {

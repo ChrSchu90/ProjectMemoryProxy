@@ -1,15 +1,15 @@
 namespace ProjectMemoryProxy.BasicMemory.Tests.Projects;
 
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-using ProjectMemoryProxy.BasicMemory.Projects;
-using ProjectMemoryProxy.BasicMemory.Projects.Directory;
-using ProjectMemoryProxy.BasicMemory.Projects.Lifecycle;
-using ProjectMemoryProxy.Core.Routing;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+using ProjectMemoryProxy.BasicMemory.Projects;
+using ProjectMemoryProxy.BasicMemory.Projects.Directory;
+using ProjectMemoryProxy.BasicMemory.Projects.Lifecycle;
+using ProjectMemoryProxy.Core.Routing;
 
 /// <summary>
 /// Tests for <see cref="ProjectRegistryReconciler"/>

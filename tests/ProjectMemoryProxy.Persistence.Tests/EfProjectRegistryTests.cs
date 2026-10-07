@@ -395,7 +395,7 @@ public sealed class EfProjectRegistryTests
         var registry = CreateRegistry(_databasePath);
         var bindings = await registry.ListBindingsAsync(CancellationToken.None);
 
-        Assert.AreEqual(2, bindings.Count);
+        Assert.HasCount(2, bindings);
         Assert.AreEqual("chatgpt-project:chatty-mcp-and-aiharborvm", bindings[0].ContextId.ToString());
         Assert.AreEqual(chatGptProjectId, bindings[0].MemoryProjectId);
         Assert.AreEqual(Status.Inactive, bindings[0].Status);

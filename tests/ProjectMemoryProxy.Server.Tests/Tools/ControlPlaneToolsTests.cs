@@ -1,12 +1,5 @@
 namespace ProjectMemoryProxy.Server.Tests.Tools;
 
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-using ModelContextProtocol.Server;
-using ProjectMemoryProxy.BasicMemory.Projects;
-using ProjectMemoryProxy.BasicMemory.Projects.Directory;
-using ProjectMemoryProxy.BasicMemory.Projects.Lifecycle;
-using ProjectMemoryProxy.Core.Routing;
-using ProjectMemoryProxy.Server.Tools;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -14,6 +7,13 @@ using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+using ModelContextProtocol.Server;
+using ProjectMemoryProxy.BasicMemory.Projects;
+using ProjectMemoryProxy.BasicMemory.Projects.Directory;
+using ProjectMemoryProxy.BasicMemory.Projects.Lifecycle;
+using ProjectMemoryProxy.Core.Routing;
+using ProjectMemoryProxy.Server.Tools;
 
 /// <summary>
 /// Tests for <see cref="ControlPlaneTools"/>
@@ -93,7 +93,7 @@ public sealed class ControlPlaneToolsTests
         Assert.AreEqual("active", createResult.Project.Status);
 
         var projects = await tools.ListProjectsAsync(CancellationToken.None);
-        Assert.AreEqual(1, projects.Projects.Count);
+        Assert.HasCount(1, projects.Projects);
         Assert.AreEqual(projectId, projects.Projects[0].ProjectId);
 
         var bindResult = await tools.BindContextAsync(TestContextId, projectId, CancellationToken.None);
@@ -104,7 +104,7 @@ public sealed class ControlPlaneToolsTests
         Assert.AreEqual("active", bindResult.Binding.Status);
 
         var bindings = await tools.ListContextBindingsAsync(CancellationToken.None);
-        Assert.AreEqual(1, bindings.Bindings.Count);
+        Assert.HasCount(1, bindings.Bindings);
         Assert.AreEqual(TestContextId, bindings.Bindings[0].ContextId);
 
         var deactivateProjectResult = await tools.DeactivateProjectAsync(projectId, CancellationToken.None);
@@ -125,11 +125,11 @@ public sealed class ControlPlaneToolsTests
 
         var unbindResult = await tools.UnbindContextAsync(TestContextId, CancellationToken.None);
         Assert.AreEqual("unbound", unbindResult.Status);
-        Assert.AreEqual(0, (await tools.ListContextBindingsAsync(CancellationToken.None)).Bindings.Count);
+        Assert.IsEmpty((await tools.ListContextBindingsAsync(CancellationToken.None)).Bindings);
 
         var deleteResult = await tools.DeleteProjectAsync(projectId, false, CancellationToken.None);
         Assert.AreEqual("deleted", deleteResult.Status);
-        Assert.AreEqual(0, (await tools.ListProjectsAsync(CancellationToken.None)).Projects.Count);
+        Assert.IsEmpty((await tools.ListProjectsAsync(CancellationToken.None)).Projects);
     }
 
     /// <summary>
@@ -146,7 +146,7 @@ public sealed class ControlPlaneToolsTests
         var result = await tools.BindContextAsync("invalid-context", Guid.NewGuid(), CancellationToken.None);
         Assert.AreEqual("invalid_context", result.Status);
         Assert.IsNull(result.Binding);
-        Assert.AreEqual(0, registry.Bindings.Count);
+        Assert.IsEmpty(registry.Bindings);
     }
     
     #endregion
