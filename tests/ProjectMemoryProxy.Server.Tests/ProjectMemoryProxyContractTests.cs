@@ -155,6 +155,7 @@ public sealed class ProjectMemoryProxyContractTests
                 }, cancellationToken: cancellationToken), "unbind_context");
 
                 Assert.AreEqual("unbound", unbindResult.GetProperty("status").GetString());
+                Assert.AreEqual(JsonValueKind.Null, unbindResult.GetProperty("binding").ValueKind);
 
                 var resolveAfterUnbind = GetStructuredContent(await tools["resolve_context"].CallAsync(new Dictionary<string, object?>
                 {
@@ -227,6 +228,109 @@ public sealed class ProjectMemoryProxyContractTests
             {
                 using var cleanupCancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(30));
                 await DeleteUpstreamProjectIfPresentAsync(proxyServer.Services, projectName, cleanupCancellationTokenSource.Token);
+            }
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            if (Directory.Exists(dataDirectory))
+                Directory.Delete(dataDirectory, recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that two active contexts with the same note title resolve to separate Basic Memory project identities and never read each other's content.
+    /// </summary>
+    [TestMethod]
+    public async Task LiveBasicMemoryEndpointIsolatesNotesAcrossProjects()
+    {
+        var basicMemoryEndpoint = GetTestBasicMemoryEndpointOrSkipTest();
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(120));
+        var cancellationToken = timeout.Token;
+        var suffix = Guid.NewGuid().ToString("N");
+        var projectA = $"pmp-isolation-a-{suffix}";
+        var projectB = $"pmp-isolation-b-{suffix}";
+        var contextA = $"git:contract.invalid/{projectA}";
+        var contextB = $"git:contract.invalid/{projectB}";
+        var markerA = $"content-from-project-a-{suffix}";
+        var markerB = $"content-from-project-b-{suffix}";
+        var dataDirectory = Path.Combine(Path.GetTempPath(), "ProjectMemoryProxy.ContractTests", $"isolation-{suffix}");
+        Directory.CreateDirectory(dataDirectory);
+
+        try
+        {
+            await using var proxyServer = await StartProxyServerAsync(basicMemoryEndpoint, dataDirectory, cancellationToken);
+            try
+            {
+                await using var client = await CreateMcpClientAsync(GetMcpEndpoint(proxyServer), cancellationToken);
+                var tools = await GetToolsByNameAsync(client, cancellationToken);
+
+                async Task<string> CreateAndBindAsync(string projectName, string contextId)
+                {
+                    var path = Path.GetFullPath(Path.Combine(Path.GetTempPath(), "ProjectMemoryProxy.ContractTests", projectName));
+                    var created = GetStructuredContent(await tools["create_project"].CallAsync(new Dictionary<string, object?>
+                    {
+                        ["project_name"] = projectName,
+                        ["project_path"] = path
+                    }, cancellationToken: cancellationToken), "create_project");
+
+                    Assert.AreEqual("created", created.GetProperty("status").GetString());
+                    var projectId = created.GetProperty("project").GetProperty("project_id").GetString()!;
+                    Assert.IsTrue(Guid.TryParse(projectId, out var parsedId));
+                    Assert.AreNotEqual(Guid.Empty, parsedId);
+
+                    var bound = GetStructuredContent(await tools["bind_context"].CallAsync(new Dictionary<string, object?>
+                    {
+                        ["context_id"] = contextId,
+                        ["project_id"] = projectId
+                    }, cancellationToken: cancellationToken), "bind_context");
+
+                    Assert.AreEqual("bound", bound.GetProperty("status").GetString());
+                    return projectId;
+                }
+
+                var idA = await CreateAndBindAsync(projectA, contextA);
+                var idB = await CreateAndBindAsync(projectB, contextB);
+                Assert.AreNotEqual(idA, idB);
+
+                async Task WriteAsync(string contextId, string content)
+                {
+                    AssertToolSucceeded(await tools["write_note"].CallAsync(new Dictionary<string, object?>
+                    {
+                        ["title"] = "Same Title",
+                        ["directory"] = "isolation-tests",
+                        ["content"] = content,
+                        ["context_id"] = contextId
+                    }, cancellationToken: cancellationToken), "write_note");
+                }
+
+                await WriteAsync(contextA, markerA);
+                await WriteAsync(contextB, markerB);
+
+                async Task<string> ReadAsync(string contextId)
+                {
+                    var result = await tools["read_note"].CallAsync(new Dictionary<string, object?>
+                    {
+                        ["identifier"] = "Same Title",
+                        ["context_id"] = contextId
+                    }, cancellationToken: cancellationToken);
+                    AssertToolSucceeded(result, "read_note");
+                    return string.Join(Environment.NewLine, result.Content.OfType<TextContentBlock>().Select(block => block.Text));
+                }
+
+                var textA = await ReadAsync(contextA);
+                var textB = await ReadAsync(contextB);
+                Assert.Contains(markerA, textA);
+                Assert.IsFalse(textA.Contains(markerB, StringComparison.Ordinal));
+                Assert.Contains(markerB, textB);
+                Assert.IsFalse(textB.Contains(markerA, StringComparison.Ordinal));
+            }
+            finally
+            {
+                using var cleanupTimeoutA = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+                await DeleteUpstreamProjectIfPresentAsync(proxyServer.Services, projectA, cleanupTimeoutA.Token);
+                using var cleanupTimeoutB = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+                await DeleteUpstreamProjectIfPresentAsync(proxyServer.Services, projectB, cleanupTimeoutB.Token);
             }
         }
         finally

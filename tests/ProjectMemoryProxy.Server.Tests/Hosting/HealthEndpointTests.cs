@@ -9,7 +9,6 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
@@ -17,7 +16,7 @@ using Microsoft.Extensions.DependencyInjection;
 using ProjectMemoryProxy.Server.Hosting;
 
 /// <summary>
-/// Tests for <see cref="HealthEndpoint"/>
+/// Tests the HTTP liveness and readiness endpoints.
 /// </summary>
 [TestClass]
 public sealed class HealthEndpointTests
@@ -81,15 +80,7 @@ public sealed class HealthEndpointTests
         builder.Services.AddHealthChecks().AddCheck<BasicMemoryHealthCheck>("basic-memory", tags: ["ready"]);
 
         var app = builder.Build();
-        app.MapHealthChecks("/health/live", new HealthCheckOptions
-        {
-            Predicate = _ => false
-        });
-
-        app.MapHealthChecks("/health/ready", new HealthCheckOptions
-        {
-            Predicate = healthCheck => healthCheck.Tags.Contains("ready")
-        });
+        app.MapProjectMemoryProxyHealthEndpoints();
 
         await app.StartAsync(cancellationToken);
 

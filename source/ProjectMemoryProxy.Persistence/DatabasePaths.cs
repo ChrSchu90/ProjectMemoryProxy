@@ -38,7 +38,7 @@ internal sealed class DatabasePaths
 
         DatabasePath = Path.Combine(normalizedRootPath, "projectmemoryproxy.db");
         MigrationPath = DatabasePath + ".migrate";
-        BackupPath = DatabasePath + ".bak";
+        BackupPath = DatabasePath + ".pre-migration";
     }
 
 

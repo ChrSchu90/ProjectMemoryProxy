@@ -1,6 +1,7 @@
 namespace ProjectMemoryProxy.BasicMemory.Tests.Client;
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Threading;
@@ -14,6 +15,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using ModelContextProtocol.AspNetCore;
+using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 using ProjectMemoryProxy.BasicMemory.Client;
 using ProjectMemoryProxy.Core.Configuration;
@@ -78,15 +80,73 @@ public sealed class BasicMemoryClientTests
         await Assert.ThrowsAsync<OperationCanceledException>(() => client.ListToolsAsync(cancellationTokenSource.Token));
     }
 
+    /// <summary>
+    /// Verifies that an already-discovered MCP tool remains usable after the stateless upstream HTTP server restarts on the same address.
+    /// </summary>
+    [TestMethod]
+    public async Task DiscoveredToolWorksAfterStatelessUpstreamRestart()
+    {
+        using var source = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        WebApplication? server = await CreateTestServerAsync(source.Token);
+
+        try
+        {
+            var endpoint = GetMcpEndpoint(server);
+            var options = Options.Create(new ProjectMemoryProxyOptions
+            {
+                BasicMemoryEndpoint = endpoint,
+                BasicMemoryConnectionTimeout = TimeSpan.FromSeconds(5)
+            });
+
+            await using var client = new BasicMemoryClient(options, NullLoggerFactory.Instance, NullLogger<BasicMemoryClient>.Instance);
+            var tool = (await client.ListToolsAsync(source.Token)).Single(item => item.Name == "search_notes");
+
+            var first = await tool.CallAsync(new Dictionary<string, object?> { ["query"] = "before" }, cancellationToken: source.Token);
+            Assert.IsFalse(first.IsError is true);
+            Assert.AreEqual("before", string.Join("", first.Content.OfType<TextContentBlock>().Select(block => block.Text)));
+
+            await server.StopAsync(source.Token);
+            await server.DisposeAsync();
+            server = null;
+
+            // A failed call during the outage must not permanently poison the cached tool.
+            bool failedWhileOffline;
+            try
+            {
+                var offline = await tool.CallAsync(new Dictionary<string, object?> { ["query"] = "offline" }, cancellationToken: source.Token);
+                failedWhileOffline = offline.IsError is true;
+            }
+            catch (Exception)
+            {
+                Assert.IsFalse(source.IsCancellationRequested, "The offline request hung until the test timed out.");
+                failedWhileOffline = true;
+            }
+
+            Assert.IsTrue(failedWhileOffline, "The call must fail while the upstream server is stopped.");
+
+            // Keep the BasicMemoryClient and the previously discovered McpClientTool alive.
+            server = await CreateTestServerAsync(source.Token, endpoint.Port);
+
+            var second = await tool.CallAsync(new Dictionary<string, object?> { ["query"] = "after" }, cancellationToken: source.Token);
+            Assert.IsFalse(second.IsError is true);
+            Assert.AreEqual("after", string.Join("", second.Content.OfType<TextContentBlock>().Select(block => block.Text)));
+        }
+        finally
+        {
+            if (server != null)
+                await server.DisposeAsync();
+        }
+    }
+
     #endregion
 
     #region Private Methods
 
-    private static async Task<WebApplication> CreateTestServerAsync(CancellationToken cancellationToken)
+    private static async Task<WebApplication> CreateTestServerAsync(CancellationToken cancellationToken, int port = 0)
     {
         var builder = WebApplication.CreateBuilder();
 
-        builder.WebHost.ConfigureKestrel(options => options.Listen(IPAddress.Loopback, 0));
+        builder.WebHost.ConfigureKestrel(options => options.Listen(IPAddress.Loopback, port));
 
         builder.Services
             .AddMcpServer()

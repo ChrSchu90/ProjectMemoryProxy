@@ -63,6 +63,10 @@ internal static class BasicMemoryStartupRetryPolicy
                 cancellationToken.ThrowIfCancellationRequested();
                 logger.LogWarning("Timed out while connecting to Basic Memory MCP: {ErrorMessage} Retrying in {RetryDelay}.", exception.Message, retryDelay);
             }
+            catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested && exception.InnerException is TimeoutException)
+            {
+                logger.LogWarning("Timed out while connecting to Basic Memory MCP: {ErrorMessage} Retrying in {RetryDelay}.", exception.Message, retryDelay);
+            }
 
             await Task.Delay(retryDelay, cancellationToken).ConfigureAwait(false);
         }

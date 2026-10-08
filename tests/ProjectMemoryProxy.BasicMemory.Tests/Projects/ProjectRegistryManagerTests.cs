@@ -892,6 +892,48 @@ public sealed class ProjectRegistryManagerTests
     }
 
     /// <summary>
+    /// Verifies that repeated creation preserves the same validated project UUID and name without using a different path to create another project.
+    /// </summary>
+    [TestMethod]
+    public async Task CreateProjectAsyncKeepsExistingIdentityWhenRequestedPathDiffers()
+    {
+        var existingRouting = new ProjectRouting(ProjectAId, "project-a", Status.Active);
+        var projectDirectory = CreateProjectDirectory(BasicMemoryProjectValidationStatus.ExactMatch);
+        var projectLifecycle = new StubBasicMemoryProjectLifecycle();
+        var projectRegistry = new StubProjectRegistry { ProjectByName = existingRouting };
+        var manager = CreateManager(projectDirectory, projectRegistry, projectLifecycle);
+
+        var result = await manager.CreateProjectAsync("project-a", ProjectBPath);
+
+        Assert.AreEqual(ProjectCreationStatus.AlreadyRegistered, result.Status);
+        Assert.AreEqual(existingRouting, result.Routing);
+        Assert.AreEqual(0, projectLifecycle.CreateCallCount);
+        Assert.AreEqual(0, projectRegistry.CreateCallCount);
+        Assert.AreEqual(ProjectAId, projectDirectory.ValidatedMemoryProjectId);
+        Assert.AreEqual("project-a", projectDirectory.ValidatedMemoryProjectName);
+    }
+
+    /// <summary>
+    /// Verifies that a registered project name is not silently adopted when Basic Memory now assigns it a different GUID.
+    /// </summary>
+    [TestMethod]
+    public async Task CreateProjectAsyncRejectsChangedGuidForRegisteredName()
+    {
+        var existingRouting = new ProjectRouting(ProjectAId, "project-a", Status.Active);
+        var projectDirectory = CreateProjectDirectory(BasicMemoryProjectValidationStatus.IdMismatch);
+        var projectLifecycle = new StubBasicMemoryProjectLifecycle();
+        var projectRegistry = new StubProjectRegistry { ProjectByName = existingRouting };
+        var manager = CreateManager(projectDirectory, projectRegistry, projectLifecycle);
+
+        var result = await manager.CreateProjectAsync("project-a", ProjectAPath);
+
+        Assert.AreEqual(ProjectCreationStatus.BasicMemoryProjectIdMismatch, result.Status);
+        Assert.IsNull(result.Routing);
+        Assert.AreEqual(0, projectLifecycle.CreateCallCount);
+        Assert.AreEqual(0, projectRegistry.CreateCallCount);
+    }
+
+    /// <summary>
     /// Verifies that an existing unregistered Basic Memory project is not adopted when its filesystem path differs from the requested create path.
     /// </summary>
     [TestMethod]

@@ -86,6 +86,56 @@ public sealed class BasicMemoryStartupRetryPolicyTests
     }
 
     /// <summary>
+    /// Verifies that an HTTP timeout wrapped as an <see cref="OperationCanceledException"/> is retried when startup has not been canceled.
+    /// </summary>
+    [TestMethod]
+    public async Task ExecuteAsyncRetriesWrappedHttpTimeout()
+    {
+        var attemptCount = 0;
+        var logger = new CapturingLogger();
+
+        await BasicMemoryStartupRetryPolicy.ExecuteAsync(_ =>
+            {
+                if (++attemptCount == 1)
+                    throw new OperationCanceledException("HTTP timeout", new TimeoutException("Request timed out"), CancellationToken.None);
+
+                return Task.CompletedTask;
+            },
+            logger,
+            TimeSpan.Zero,
+            CancellationToken.None);
+
+        Assert.AreEqual(2, attemptCount);
+        Assert.HasCount(1, logger.Entries);
+        Assert.AreEqual(LogLevel.Warning, logger.Entries[0].LogLevel);
+        Assert.IsNull(logger.Entries[0].Exception);
+    }
+
+    /// <summary>
+    /// Verifies that caller cancellation is never retried, even when the cancellation carries a nested timeout.
+    /// </summary>
+    [TestMethod]
+    public async Task ExecuteAsyncPropagatesCallerCancellationWithNestedTimeout()
+    {
+        using var source = new CancellationTokenSource();
+        var attemptCount = 0;
+        var logger = new CapturingLogger();
+
+        await Assert.ThrowsAsync<OperationCanceledException>(() => BasicMemoryStartupRetryPolicy.ExecuteAsync(_ =>
+            {
+                attemptCount++;
+                source.Cancel();
+                throw new OperationCanceledException("Startup canceled", new TimeoutException("Earlier HTTP timeout"), source.Token);
+            },
+            logger,
+            TimeSpan.Zero,
+            source.Token));
+
+        Assert.AreEqual(1, attemptCount);
+        Assert.HasCount(0, logger.Entries);
+    }
+
+    /// <summary>
     /// Verifies that non-transient startup failures are propagated immediately instead of being retried.
     /// </summary>
     [TestMethod]

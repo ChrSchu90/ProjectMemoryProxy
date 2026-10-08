@@ -7,4 +7,4 @@ using System.Text.Json.Serialization;
 /// </summary>
 internal sealed record ContextBindingControlPlaneResult(
     [property: JsonPropertyName("status")] string Status,
-    [property: JsonPropertyName("binding")] ContextBindingInfo? Binding);
+    [property: JsonPropertyName("binding"), JsonIgnore(Condition = JsonIgnoreCondition.Never)] ContextBindingInfo? Binding);

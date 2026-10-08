@@ -3,7 +3,6 @@ using System.Globalization;
 using System.Reflection;
 using System.Threading;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.DependencyInjection;
 using ModelContextProtocol.AspNetCore;
 using ProjectMemoryProxy.BasicMemory;
@@ -77,8 +76,7 @@ var app = builder.Build();
 await app.Services.MigrateDatabaseAsync();
 
 // Map the health check endpoints for liveness and readiness probes.
-app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false });
-app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = healthCheck => healthCheck.Tags.Contains("ready") });
+app.MapProjectMemoryProxyHealthEndpoints();
 
 app.MapMcp();
 app.Run();

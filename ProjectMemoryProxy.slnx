@@ -1,18 +1,22 @@
 <Solution>
-  <Folder Name="/Solution Items/">
+  <Folder Name="/Docker Items/">
     <File Path=".dockerignore" />
-    <File Path=".editorconfig" />
-    <File Path=".gitattributes" />
+    <File Path="docker-debug.sh" />
+    <File Path="Dockerfile" />
+    <File Path="examples/compose.yml" />
+  </Folder>
+  <Folder Name="/Github Items/">
     <File Path=".github/compose.contract-test.yml" />
     <File Path=".github/dependabot.yml" />
     <File Path=".github/workflows/build.yml" />
     <File Path=".github/workflows/contract-test.yml" />
+  </Folder>
+  <Folder Name="/Solution Items/">
+    <File Path=".editorconfig" />
+    <File Path=".gitattributes" />
     <File Path=".gitignore" />
     <File Path="Directory.Build.props" />
-    <File Path="docker-debug.sh" />
-    <File Path="Dockerfile" />
     <File Path="dotnet-tools.json" />
-    <File Path="examples/compose.yml" />
     <File Path="global.json" />
     <File Path="NuGet.Config" />
     <File Path="README.md" />
