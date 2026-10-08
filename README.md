@@ -1,6 +1,6 @@
 # ProjectMemoryProxy
-[![Build](https://github.com/ChrSchu90/ProjectMemoryProxy/actions/workflows/build.yml/badge.svg)](https://github.com/ChrSchu90/ProjectMemoryProxy/actions/workflows/build.yml)
-[![Contract Monitor](https://github.com/ChrSchu90/ProjectMemoryProxy/actions/workflows/contract-test.yml/badge.svg)](https://github.com/ChrSchu90/ProjectMemoryProxy/actions/workflows/contract-test.yml)
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE) [![GHCR](https://img.shields.io/badge/GHCR-project--memory--proxy-blue?logo=github)](https://github.com/ChrSchu90/ProjectMemoryProxy/pkgs/container/project-memory-proxy) [![Build](https://github.com/ChrSchu90/ProjectMemoryProxy/actions/workflows/build.yml/badge.svg)](https://github.com/ChrSchu90/ProjectMemoryProxy/actions/workflows/build.yml) [![Contract Monitor](https://github.com/ChrSchu90/ProjectMemoryProxy/actions/workflows/contract-test.yml/badge.svg)](https://github.com/ChrSchu90/ProjectMemoryProxy/actions/workflows/contract-test.yml)
 
 **Project-scoped, shared memory for self-hosted AI assistants.**
 
