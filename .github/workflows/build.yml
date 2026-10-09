@@ -25,8 +25,9 @@ env:
   NET_DEPLOY_PROJECT: source/ProjectMemoryProxy.Server/ProjectMemoryProxy.Server.csproj
   NET_DB_PROJECT: source/ProjectMemoryProxy.Persistence/ProjectMemoryProxy.Persistence.csproj
   NET_PUBLISH_DIR: ProjectMemoryProxy/bin/publish/
-  NET_PUBLISH_ARGS: "--verbosity normal --configuration Release -p:DebugType=embedded -p:PublishSingleFile=true -p:GenerateDocumentationFile=false --self-contained false"
+  NET_PUBLISH_ARGS: "--verbosity n -c Release -p:DebugType=embedded -p:PublishSingleFile=true -p:GenerateDocumentationFile=false --self-contained true"
   APP_LINUX_X64_ARCHIVE: "ProjectMemoryProxy-linux-x64.tar.gz"
+  APP_LINUX_ARM64_ARCHIVE: "ProjectMemoryProxy-linux-arm64.tar.gz"
   APP_WIN_X64_ARCHIVE: "ProjectMemoryProxy-win-x64.zip"
   DOCKER_REGISTRY: ghcr.io
   DOCKER_FULL_IMAGE_NAME: ghcr.io/chrschu90/project-memory-proxy
@@ -80,10 +81,12 @@ jobs:
       run: |
         set -euo pipefail
         
-        dotnet publish "$NET_DEPLOY_PROJECT" -r linux-x64 $NET_PUBLISH_ARGS -p:Version="$APP_VERSION" -o "${NET_PUBLISH_DIR}linux-x64"     
-        dotnet publish "$NET_DEPLOY_PROJECT" -r win-x64 $NET_PUBLISH_ARGS -p:Version="$APP_VERSION" -o "${NET_PUBLISH_DIR}win-x64"     
+        dotnet publish "$NET_DEPLOY_PROJECT" -r linux-x64 $NET_PUBLISH_ARGS -p:Version="$APP_VERSION" -o "${NET_PUBLISH_DIR}linux-x64"
+        dotnet publish "$NET_DEPLOY_PROJECT" -r linux-arm64 $NET_PUBLISH_ARGS -p:Version="$APP_VERSION" -o "${NET_PUBLISH_DIR}linux-arm64"
+        dotnet publish "$NET_DEPLOY_PROJECT" -r win-x64 $NET_PUBLISH_ARGS -p:Version="$APP_VERSION" -o "${NET_PUBLISH_DIR}win-x64"
         
         tar -czf "${NET_PUBLISH_DIR}${APP_LINUX_X64_ARCHIVE}" -C "${NET_PUBLISH_DIR}linux-x64" .
+        tar -czf "${NET_PUBLISH_DIR}${APP_LINUX_ARM64_ARCHIVE}" -C "${NET_PUBLISH_DIR}linux-arm64" .
         (cd "${NET_PUBLISH_DIR}win-x64" && zip -r "../${APP_WIN_X64_ARCHIVE}" .)
     
     - name: Docker QEMU Setup
@@ -203,4 +206,5 @@ jobs:
         fail_on_unmatched_files: true
         files: |
           ./${{ env.NET_PUBLISH_DIR }}${{ env.APP_LINUX_X64_ARCHIVE }}
+          ./${{ env.NET_PUBLISH_DIR }}${{ env.APP_LINUX_ARM64_ARCHIVE }}
           ./${{ env.NET_PUBLISH_DIR }}${{ env.APP_WIN_X64_ARCHIVE }}

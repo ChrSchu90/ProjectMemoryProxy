@@ -14,6 +14,7 @@ COPY . .
 RUN dotnet publish \
     source/ProjectMemoryProxy.Server/ProjectMemoryProxy.Server.csproj \
     -p:DebugType=embedded \
+    -p:GenerateDocumentationFile=false \
     -p:Version="${APP_VERSION}" \
     -c Release \
     -a "${TARGETARCH}" \
