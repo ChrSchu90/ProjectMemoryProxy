@@ -78,5 +78,5 @@ await app.Services.MigrateDatabaseAsync();
 // Map the health check endpoints for liveness and readiness probes.
 app.MapProjectMemoryProxyHealthEndpoints();
 
-app.MapMcp();
+app.MapMcp("/mcp");
 app.Run();

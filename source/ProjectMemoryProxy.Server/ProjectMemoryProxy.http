@@ -28,7 +28,7 @@ Mcp-Method: tools/list
 
 ### List available ProjectMemoryProxy tools
 
-POST {{HostAddress}}/
+POST {{HostAddress}}/mcp
 Content-Type: application/json
 Accept: application/json, text/event-stream
 MCP-Protocol-Version: 2026-07-28
@@ -52,7 +52,7 @@ Mcp-Method: tools/list
 
 ### Basic Memory Diagnostic through ProjectMemoryProxy
 
-POST {{HostAddress}}/
+POST {{HostAddress}}/mcp
 Content-Type: application/json
 Accept: application/json, text/event-stream
 MCP-Protocol-Version: 2026-07-28
@@ -79,7 +79,7 @@ Mcp-Name: basic_memory_diagnostics
 
 ### Resolve context
 
-POST {{HostAddress}}/
+POST {{HostAddress}}/mcp
 Accept: application/json, text/event-stream
 Content-Type: application/json
 MCP-Protocol-Version: 2025-11-25

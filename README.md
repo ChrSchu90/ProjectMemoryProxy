@@ -70,11 +70,13 @@ The current scope is deliberately narrow:
 
 ## Running ProjectMemoryProxy
 
-The repository provides a [Docker image](https://github.com/ChrSchu90/ProjectMemoryProxy/pkgs/container/project-memory-proxy) and an [example Docker Compose stack](examples/compose.yml) combining Basic Memory, ProjectMemoryProxy, and the OpenAI Secure MCP Tunnel. ProjectMemoryProxy keeps its own routing metadata in a persistent SQLite data directory.
+The repository provides a [Docker image](https://github.com/ChrSchu90/ProjectMemoryProxy/pkgs/container/project-memory-proxy) and an [example Docker Compose stack](examples/compose.yml) combining Basic Memory, ProjectMemoryProxy, and the OpenAI Secure MCP Tunnel. ProjectMemoryProxy keeps its own routing metadata in a persistent data directory.
 
-**Deployment note:** The example Compose file currently points the tunnel to `/mcp`, while the server's current `app.MapMcp()` configuration maps the MCP endpoint at `/`. Align these paths before using the example. The health endpoints are independent:
+**MCP endpoint:** ProjectMemoryProxy exposes its Streamable HTTP endpoint at `/mcp`. The example Docker Compose configuration uses `http://project-memory-proxy:8000/mcp`.
 
-- `GET /health/live` — the proxy process is responding.
-- `GET /health/ready` — Basic Memory diagnostics are reachable through the proxy.
+The health endpoints are available separately:
+
+- `/health/live` — Liveness check.
+- `/health/ready` — Readiness check, including Basic Memory connectivity.
 
 The implementation and test suite are in place; deployment and migration of existing clients from direct Basic Memory access to the proxy are separate steps.
