@@ -1,11 +1,11 @@
 version: 2
 updates:
   - package-ecosystem: "github-actions"
-    directory: "/" # default location of `.github/workflows`
+    directory: "/"
     schedule:
       interval: "weekly"
       day: "friday"
-      time: "12:37"
+      time: "12:27"
       timezone: "Europe/Berlin"
   
   - package-ecosystem: "nuget"
@@ -21,5 +21,5 @@ updates:
     schedule:
       interval: "weekly"
       day: "friday"
-      time: "12:17"
+      time: "12:27"
       timezone: "Europe/Berlin"
