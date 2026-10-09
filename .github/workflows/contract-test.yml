@@ -3,7 +3,7 @@ name: Basic Memory Contract Monitor
 on:
   workflow_dispatch:
   schedule:
-    - cron: '27 16 * * *'
+    - cron: '27 13 * * *'
       timezone: 'Europe/Berlin'
   push:
     branches:
