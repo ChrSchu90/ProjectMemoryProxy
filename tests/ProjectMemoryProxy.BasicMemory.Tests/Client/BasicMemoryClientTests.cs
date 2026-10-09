@@ -102,7 +102,7 @@ public sealed class BasicMemoryClientTests
             var tool = (await client.ListToolsAsync(source.Token)).Single(item => item.Name == "search_notes");
 
             var first = await tool.CallAsync(new Dictionary<string, object?> { ["query"] = "before" }, cancellationToken: source.Token);
-            Assert.IsFalse(first.IsError is true);
+            Assert.AreNotEqual(true, first.IsError);
             Assert.AreEqual("before", string.Join("", first.Content.OfType<TextContentBlock>().Select(block => block.Text)));
 
             await server.StopAsync(source.Token);
@@ -118,7 +118,7 @@ public sealed class BasicMemoryClientTests
             }
             catch (Exception)
             {
-                Assert.IsFalse(source.IsCancellationRequested, "The offline request hung until the test timed out.");
+                Assert.AreNotEqual(true, source.IsCancellationRequested, "The offline request hung until the test timed out.");
                 failedWhileOffline = true;
             }
 
@@ -128,7 +128,7 @@ public sealed class BasicMemoryClientTests
             server = await CreateTestServerAsync(source.Token, endpoint.Port);
 
             var second = await tool.CallAsync(new Dictionary<string, object?> { ["query"] = "after" }, cancellationToken: source.Token);
-            Assert.IsFalse(second.IsError is true);
+            Assert.AreNotEqual(true, second.IsError);
             Assert.AreEqual("after", string.Join("", second.Content.OfType<TextContentBlock>().Select(block => block.Text)));
         }
         finally
