@@ -78,5 +78,3 @@ The health endpoints are available separately:
 
 - `/health/live` — Liveness check.
 - `/health/ready` — Readiness check, including Basic Memory connectivity.
-
-The implementation and test suite are in place; deployment and migration of existing clients from direct Basic Memory access to the proxy are separate steps.
