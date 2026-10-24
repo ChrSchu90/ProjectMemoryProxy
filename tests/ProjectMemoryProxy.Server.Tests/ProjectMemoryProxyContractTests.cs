@@ -435,7 +435,7 @@ public sealed class ProjectMemoryProxyContractTests
 
     private static void AssertProxyToolSurface(IReadOnlyDictionary<string, McpClientTool> tools)
     {
-        Assert.HasCount(22, tools, "The complete proxy should expose 15 Basic Memory-derived tools plus seven proxy-owned tools.");
+        Assert.HasCount(28, tools, "The complete proxy should expose 21 Basic Memory-derived tools plus seven proxy-owned tools.");
 
         foreach (var toolName in EnabledProxyOwnedTools)
         {

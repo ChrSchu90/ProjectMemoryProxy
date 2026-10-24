@@ -40,9 +40,14 @@ public sealed class BasicMemoryContractTests
     private static readonly string[] AutomaticallyRoutedTools =
     [
         "build_context",
+        "cat",
         "delete_note",
         "edit_note",
+        "find",
+        "grep",
         "list_directory",
+        "ls",
+        "man",
         "move_note",
         "read_content",
         "read_note",
@@ -51,6 +56,7 @@ public sealed class BasicMemoryContractTests
         "schema_infer",
         "schema_validate",
         "search_notes",
+        "tail",
         "view_note",
         "write_note"
     ];
