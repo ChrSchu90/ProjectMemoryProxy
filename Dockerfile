@@ -6,7 +6,7 @@ FROM --platform=${BUILDPLATFORM} mcr.microsoft.com/dotnet/sdk:10.0-alpine3.24@sh
 
 ARG TARGETARCH
 ARG TARGETVARIANT
-ARG APP_VERSION=0.0.1
+ARG APP_VERSION
 
 WORKDIR /src
 COPY . .
