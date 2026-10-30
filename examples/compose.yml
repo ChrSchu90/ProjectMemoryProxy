@@ -1,6 +1,6 @@
 services:
   basic-memory:
-    image: ghcr.io/basicmachines-co/basic-memory:latest
+    image: ghcr.io/basicmachines-co/basic-memory:0.24
     restart: unless-stopped
     environment:
       BASIC_MEMORY_FORCE_LOCAL: true
