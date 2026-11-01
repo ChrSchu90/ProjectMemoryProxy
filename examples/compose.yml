@@ -1,11 +1,12 @@
 services:
   basic-memory:
-    image: ghcr.io/basicmachines-co/basic-memory:0.24
+    image: ghcr.io/basicmachines-co/basic-memory:1.0
     restart: unless-stopped
     environment:
       BASIC_MEMORY_FORCE_LOCAL: true
       BASIC_MEMORY_NO_PROMOS: true
       BASIC_MEMORY_DEFAULT_PROJECT: default
+      BASIC_MEMORY_ENABLE_PROJECT_DELETE: true
       BASIC_MEMORY_INDEX_CHANGES: true
       BASIC_MEMORY_INDEX_DELAY: 1000
       BASIC_MEMORY_SEMANTIC_SEARCH_ENABLED: true
