@@ -170,13 +170,14 @@ public sealed class BasicMemoryToolClassifierTests
     }
 
     /// <summary>
-    /// Verifies that deprecated unscoped compatibility tool names stay blocked if a later upstream release reintroduces them.
+    /// Verifies that unscoped compatibility and hosted-agent tool names stay blocked if an upstream release exposes them.
     /// </summary>
     [TestMethod]
+    [DataRow("bm_agent")]
     [DataRow("fetch")]
     [DataRow("search")]
     [DataRow("list_workspaces")]
-    public void ClassifyKeepsLegacyUnscopedToolsBlocked(string toolName)
+    public void ClassifyKeepsUnscopedAndHostedToolsBlocked(string toolName)
     {
         var classifier = new BasicMemoryToolClassifier();
         var schema = ParseSchema("""{"type":"object","properties":{"project":{"type":"string"}}}""");
@@ -206,15 +207,17 @@ public sealed class BasicMemoryToolClassifierTests
     }
 
     /// <summary>
-    /// Verifies that the Basic Memory manual is explicitly approved as a read-only global operation.
+    /// Verifies that the Basic Memory manual stays hidden even if a later upstream version adds a routable project selector.
     /// </summary>
     [TestMethod]
-    public void ClassifyAllowsManualAsGlobalOperation()
+    public void ClassifyIntentionallyBlocksManualWithOrWithoutProjectSelector()
     {
         var classifier = new BasicMemoryToolClassifier();
+        var noProjectSchema = ParseSchema("""{"type":"object","properties":{}}""");
+        var projectSchema = ParseSchema("""{"type":"object","properties":{"project":{"type":"string"}}}""");
 
-        var result = classifier.Classify("bm_man", ParseSchema("""{"type":"object","properties":{}}"""));
-        Assert.AreEqual(ToolRoutingClassification.GlobalAllowlisted, result);
+        Assert.AreEqual(ToolRoutingClassification.IntentionallyBlocked, classifier.Classify("bm_man", noProjectSchema));
+        Assert.AreEqual(ToolRoutingClassification.IntentionallyBlocked, classifier.Classify("bm_man", projectSchema));
     }
 
     #endregion

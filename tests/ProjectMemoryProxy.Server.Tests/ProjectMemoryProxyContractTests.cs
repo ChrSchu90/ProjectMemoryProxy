@@ -449,7 +449,7 @@ public sealed class ProjectMemoryProxyContractTests
 
     private static void AssertProxyToolSurface(IReadOnlyDictionary<string, McpClientTool> tools)
     {
-        Assert.HasCount(18, tools, "The complete proxy should expose 11 Basic Memory-derived tools plus seven proxy-owned tools.");
+        Assert.HasCount(17, tools, "The complete proxy should expose ten project-scoped Basic Memory tools plus seven proxy-owned tools.");
 
         foreach (var toolName in EnabledProxyOwnedTools)
         {
@@ -466,6 +466,7 @@ public sealed class ProjectMemoryProxyContractTests
         Assert.IsTrue(tools.ContainsKey("bm_search"), "The routed Basic Memory search tool must be exposed.");
         Assert.IsFalse(tools.ContainsKey("bm_project"), "Basic Memory project management must remain exclusive to the PMP control plane.");
         Assert.IsFalse(tools.ContainsKey("bm_project_delete"), "Basic Memory project deletion must remain exclusive to the PMP control plane.");
+        Assert.IsFalse(tools.ContainsKey("bm_man"), "Unscoped upstream documentation must remain hidden from PMP clients.");
     }
 
     private static JsonElement GetStructuredContent(CallToolResult result, string toolName)

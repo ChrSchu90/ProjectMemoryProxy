@@ -23,14 +23,11 @@ internal sealed class BasicMemoryToolClassifier
         BasicMemoryToolNames.ProjectDelete
     };
 
-    private static readonly HashSet<string> GlobalAllowlistedTools = new(StringComparer.Ordinal)
-    {
-        BasicMemoryToolNames.Manual
-    };
-
-    // Keep intentionally excluded legacy compatibility tools blocked if a future upstream version reintroduces them.
+    // Keep unscoped manuals, hosted agents and legacy compatibility tools outside the PMP public surface.
     private static readonly HashSet<string> IntentionallyBlockedTools = new(StringComparer.Ordinal)
     {
+        BasicMemoryToolNames.Manual,
+        "bm_agent",
         "fetch",
         "list_workspaces",
         "search"
@@ -77,12 +74,6 @@ internal sealed class BasicMemoryToolClassifier
 
         if (ProjectLifecycleTools.Contains(toolName))
             return ToolRoutingClassification.ProjectLifecycle;
-
-        if (GlobalAllowlistedTools.Contains(toolName))
-        {
-            routingAnalysis = _routingSchemaGuard.Analyze(inputSchema);
-            return ToolRoutingClassification.GlobalAllowlisted;
-        }
 
         if (IntentionallyBlockedTools.Contains(toolName))
             return ToolRoutingClassification.IntentionallyBlocked;

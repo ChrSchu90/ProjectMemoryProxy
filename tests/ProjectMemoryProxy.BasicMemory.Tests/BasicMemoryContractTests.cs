@@ -51,10 +51,7 @@ public sealed class BasicMemoryContractTests
         "bm_write"
     ];
 
-    private static readonly string[] GlobalAllowlistedTools =
-    [
-        "bm_man"
-    ];
+    private static readonly string[] GlobalAllowlistedTools = [];
 
     private static readonly string[] ExplicitAdapterTools = [];
 
@@ -69,7 +66,10 @@ public sealed class BasicMemoryContractTests
         "bm_project_delete"
     ];
 
-    private static readonly string[] IntentionallyBlockedTools = [];
+    private static readonly string[] IntentionallyBlockedTools =
+    [
+        "bm_man"
+    ];
 
     private static readonly HashSet<string> ForbiddenPublicRoutingProperties = new(StringComparer.Ordinal)
     {
@@ -176,12 +176,7 @@ public sealed class BasicMemoryContractTests
             AssertAutomaticallyRoutedPublicSchema(automaticallyRoutedToolName, proxyToolsByName[automaticallyRoutedToolName].ProtocolTool.InputSchema);
         }
 
-        var manual = proxyToolsByName["bm_man"];
-        Assert.IsFalse(manual.ProtocolTool.InputSchema.GetProperty("properties").TryGetProperty("context_id", out _));
-
-        var manualResult = await manual.CallAsync(new Dictionary<string, object?>(), cancellationToken: cancellationToken);
-        Assert.IsFalse(manualResult.IsError is true, "The globally allowed Basic Memory manual must be readable.");
-        Assert.IsTrue(manualResult.Content.Count > 0);
+        Assert.IsFalse(proxyToolsByName.ContainsKey("bm_man"), "The Basic Memory manual must not be exposed through PMP.");
     }
 
     #endregion

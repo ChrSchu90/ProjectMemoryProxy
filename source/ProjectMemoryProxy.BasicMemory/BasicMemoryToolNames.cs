@@ -19,7 +19,7 @@ internal static class BasicMemoryToolNames
     internal const string ProjectDelete = "bm_project_delete";
 
     /// <summary>
-    /// The upstream read-only built-in manual tool.
+    /// The upstream read-only manual tool, explicitly hidden from the PMP surface.
     /// </summary>
     internal const string Manual = "bm_man";
 
