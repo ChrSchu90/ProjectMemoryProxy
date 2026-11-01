@@ -337,7 +337,7 @@ public sealed class ProjectMemoryProxyContractTests
                     ["identifier"] = $"{projectB}/isolation-tests/Same Title.md",
                     ["context_id"] = contextA
                 }, cancellationToken: cancellationToken);
-                Assert.IsTrue(crossProjectRead.IsError is true, "A path addressed to project B must not read its note under context A.");
+                Assert.IsTrue(crossProjectRead.IsError, "A path addressed to project B must not read its note under context A.");
             }
             finally
             {
