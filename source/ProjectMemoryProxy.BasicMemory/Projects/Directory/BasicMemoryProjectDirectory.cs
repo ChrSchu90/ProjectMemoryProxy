@@ -48,11 +48,11 @@ internal sealed class BasicMemoryProjectDirectory : IBasicMemoryProjectDirectory
     /// <inheritdoc />
     public async Task<IReadOnlyList<BasicMemoryProjectInfo>> ListAsync(CancellationToken cancellationToken = default)
     {
-        var tool = await _toolCatalog.GetRequiredToolAsync(BasicMemoryToolNames.ListMemoryProjects, cancellationToken).ConfigureAwait(false);
-        var result = await tool.CallAsync(new Dictionary<string, object?> { ["output_format"] = "json" }, cancellationToken: cancellationToken).ConfigureAwait(false);
-        var payload = BasicMemoryToolResultReader.GetObjectPayload(result, BasicMemoryToolNames.ListMemoryProjects);
+        var tool = await _toolCatalog.GetRequiredToolAsync(BasicMemoryToolNames.Project, cancellationToken).ConfigureAwait(false);
+        var result = await tool.CallAsync(new Dictionary<string, object?> { ["command"] = "list", ["output_format"] = "json" }, cancellationToken: cancellationToken).ConfigureAwait(false);
+        var payload = BasicMemoryToolResultReader.GetObjectPayload(result, BasicMemoryToolNames.Project);
         if (!payload.TryGetProperty("projects", out var projectsElement) || projectsElement.ValueKind != JsonValueKind.Array)
-            throw new InvalidOperationException($"Basic Memory '{BasicMemoryToolNames.ListMemoryProjects}' returned structured JSON without a projects array.");
+            throw new InvalidOperationException($"Basic Memory '{BasicMemoryToolNames.Project}' returned structured JSON without a projects array.");
         
         var projectIds = new HashSet<Guid>();
         var projectNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -60,11 +60,11 @@ internal sealed class BasicMemoryProjectDirectory : IBasicMemoryProjectDirectory
         foreach (var projectElement in projectsElement.EnumerateArray())
         {
             if (projectElement.ValueKind != JsonValueKind.Object)
-                throw new InvalidOperationException($"Basic Memory '{BasicMemoryToolNames.ListMemoryProjects}' returned a non-object project entry.");
+                throw new InvalidOperationException($"Basic Memory '{BasicMemoryToolNames.Project}' returned a non-object project entry.");
 
-            var projectName = BasicMemoryToolResultReader.GetRequiredString(projectElement, "name", BasicMemoryToolNames.ListMemoryProjects);
-            var externalIdValue = BasicMemoryToolResultReader.GetRequiredString(projectElement, "external_id", BasicMemoryToolNames.ListMemoryProjects);
-            var source = BasicMemoryToolResultReader.GetRequiredString(projectElement, "source", BasicMemoryToolNames.ListMemoryProjects);
+            var projectName = BasicMemoryToolResultReader.GetRequiredString(projectElement, "name", BasicMemoryToolNames.Project);
+            var externalIdValue = BasicMemoryToolResultReader.GetRequiredString(projectElement, "external_id", BasicMemoryToolNames.Project);
+            var source = BasicMemoryToolResultReader.GetRequiredString(projectElement, "source", BasicMemoryToolNames.Project);
             if (!string.Equals(source, LocalProjectSource, StringComparison.Ordinal))
                 throw new InvalidOperationException($"Basic Memory returned project '{projectName}' from unsupported source '{source}'. ProjectMemoryProxy currently supports local projects only.");
 

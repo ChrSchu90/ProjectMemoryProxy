@@ -47,10 +47,10 @@ public sealed class BasicMemoryHealthProbeTests
     #region Tests
 
     /// <summary>
-    /// Verifies that a successful <c>basic_memory_diagnostics</c> call completes the health probe successfully.
+    /// Verifies that a successful <c>bm_project(command="list")</c> call completes the health probe successfully.
     /// </summary>
     [TestMethod]
-    public async Task CheckAsyncSucceedsWhenDiagnosticsSucceeds()
+    public async Task CheckAsyncSucceedsWhenProjectListingSucceeds()
     {
         await using var fixture = await CreateFixtureAsync(throwOnCall: false);
         var probe = new BasicMemoryHealthProbe(fixture.ToolCatalog);
@@ -60,16 +60,16 @@ public sealed class BasicMemoryHealthProbeTests
     }
 
     /// <summary>
-    /// Verifies that an MCP tool error from <c>basic_memory_diagnostics</c> fails the health probe.
+    /// Verifies that an MCP tool error from <c>bm_project(command="list")</c> fails the health probe.
     /// </summary>
     [TestMethod]
-    public async Task CheckAsyncThrowsWhenDiagnosticsReturnsToolError()
+    public async Task CheckAsyncThrowsWhenProjectListingReturnsToolError()
     {
         await using var fixture = await CreateFixtureAsync(throwOnCall: true);
         var probe = new BasicMemoryHealthProbe(fixture.ToolCatalog);
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => probe.CheckAsync());
-        StringAssert.Contains(exception.Message, BasicMemoryToolNames.Diagnostics);
+        StringAssert.Contains(exception.Message, BasicMemoryToolNames.Project);
         Assert.AreEqual(1, fixture.State.CallCount);
     }
 
@@ -95,7 +95,7 @@ public sealed class BasicMemoryHealthProbeTests
 
     private static async Task<TestFixture> CreateFixtureAsync(bool throwOnCall, CancellationToken cancellationToken = default)
     {
-        var state = new DiagnosticsState(throwOnCall);
+        var state = new ProjectListState(throwOnCall);
         var server = await StartBasicMemoryServerAsync(state, cancellationToken);
 
         try
@@ -126,7 +126,7 @@ public sealed class BasicMemoryHealthProbeTests
         }
     }
 
-    private static async Task<WebApplication> StartBasicMemoryServerAsync(DiagnosticsState state, CancellationToken cancellationToken)
+    private static async Task<WebApplication> StartBasicMemoryServerAsync(ProjectListState state, CancellationToken cancellationToken)
     {
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.ConfigureKestrel(options => options.Listen(IPAddress.Loopback, 0));
@@ -156,11 +156,11 @@ public sealed class BasicMemoryHealthProbeTests
 
     #region Test Classes
 
-    private sealed class DiagnosticsState
+    private sealed class ProjectListState
     {
         #region Constructors
 
-        public DiagnosticsState(bool throwOnCall)
+        public ProjectListState(bool throwOnCall)
         {
             ThrowOnCall = throwOnCall;
         }
@@ -177,14 +177,12 @@ public sealed class BasicMemoryHealthProbeTests
 
         #region Public Methods
 
-        public string Execute()
+        public void Execute()
         {
             CallCount++;
 
             if (ThrowOnCall)
-                throw new InvalidOperationException("Diagnostics failed.");
-
-            return "ok";
+                throw new InvalidOperationException("Project listing failed.");
         }
 
         #endregion
@@ -195,13 +193,13 @@ public sealed class BasicMemoryHealthProbeTests
     {
         #region Private Fields
 
-        private readonly DiagnosticsState _state;
+        private readonly ProjectListState _state;
 
         #endregion
 
         #region Constructors
 
-        public TestBasicMemoryTools(DiagnosticsState state)
+        public TestBasicMemoryTools(ProjectListState state)
         {
             _state = state ?? throw new ArgumentNullException(nameof(state));
         }
@@ -211,16 +209,24 @@ public sealed class BasicMemoryHealthProbeTests
         #region Public Methods
 
         /// <summary>
-        /// Provides the Basic Memory diagnostics tool used by health-probe tests.
+        /// Provides the structured project inventory used by health-probe tests.
         /// </summary>
-        [McpServerTool(Name = "basic_memory_diagnostics", ReadOnly = true)]
-        public string Diagnostics()
+        [McpServerTool(Name = "bm_project", ReadOnly = false, UseStructuredContent = true)]
+        public ProjectListEnvelope ListProjects(string command, string output_format = "text")
         {
-            return _state.Execute();
+            if (command != "list" || output_format != "json")
+                throw new InvalidOperationException("Expected a read-only project inventory request.");
+
+            _state.Execute();
+            return new ProjectListEnvelope(new ProjectListPayload(Array.Empty<object>()));
         }
 
         #endregion
     }
+
+    private sealed record ProjectListEnvelope([property: System.Text.Json.Serialization.JsonPropertyName("result")] ProjectListPayload Result);
+
+    private sealed record ProjectListPayload([property: System.Text.Json.Serialization.JsonPropertyName("projects")] IReadOnlyList<object> Projects);
 
     private sealed class StubBasicMemoryClient : IBasicMemoryClient
     {
@@ -246,7 +252,7 @@ public sealed class BasicMemoryHealthProbeTests
     {
         #region Constructors
 
-        public TestFixture(WebApplication server, BasicMemoryClient client, BasicMemoryToolCatalog toolCatalog, DiagnosticsState state)
+        public TestFixture(WebApplication server, BasicMemoryClient client, BasicMemoryToolCatalog toolCatalog, ProjectListState state)
         {
             Server = server;
             Client = client;
@@ -264,7 +270,7 @@ public sealed class BasicMemoryHealthProbeTests
 
         public BasicMemoryToolCatalog ToolCatalog { get; }
 
-        public DiagnosticsState State { get; }
+        public ProjectListState State { get; }
 
         #endregion
 

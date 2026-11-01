@@ -3,6 +3,8 @@ services:
     image: ghcr.io/basicmachines-co/basic-memory:latest
     environment:
       BASIC_MEMORY_FORCE_LOCAL: true
+      # This disposable test instance must support PMP's destructive project lifecycle contract.
+      BASIC_MEMORY_ENABLE_PROJECT_DELETE: true
       BASIC_MEMORY_NO_PROMOS: true
       BASIC_MEMORY_DEFAULT_PROJECT: main
       BASIC_MEMORY_INDEX_CHANGES: true

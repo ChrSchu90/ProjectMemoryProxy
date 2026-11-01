@@ -21,7 +21,8 @@ internal sealed class RoutingSchemaGuard
         "workspace_id",
         "tenant",
         "tenant_id",
-        "search_all_projects"
+        "search_all_projects",
+        "all_projects"
     };
 
     private static readonly HashSet<string> UnsupportedRoutingSelectorNames = new(StringComparer.Ordinal)
@@ -31,7 +32,8 @@ internal sealed class RoutingSchemaGuard
         "workspace_id",
         "tenant",
         "tenant_id",
-        "search_all_projects"
+        "search_all_projects",
+        "all_projects"
     };
 
     private static readonly HashSet<string> NormalizedRoutingSelectorNames = new(StringComparer.Ordinal)
@@ -43,7 +45,8 @@ internal sealed class RoutingSchemaGuard
         "workspaceid",
         "tenant",
         "tenantid",
-        "searchallprojects"
+        "searchallprojects",
+        "allprojects"
     };
 
     private static readonly HashSet<string> RoutingTokens = new(StringComparer.OrdinalIgnoreCase)

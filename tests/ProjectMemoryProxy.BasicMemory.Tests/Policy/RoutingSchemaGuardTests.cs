@@ -170,7 +170,9 @@ public sealed class RoutingSchemaGuardTests
                 "project_id": { "type": "string" },
                 "workspace": { "type": ["string", "null"] },
                 "tenant_id": { "type": ["string", "null"] },
-                "search_all_projects": { "type": "boolean" }
+                "search_all_projects": { "type": "boolean" },
+                "all_projects": { "type": "boolean" },
+                "projects": { "type": ["array", "null"] }
               }
             }
             """);
@@ -181,7 +183,9 @@ public sealed class RoutingSchemaGuardTests
         CollectionAssert.AreEqual(
             new[]
             {
+                "all_projects",
                 "project_id",
+                "projects",
                 "search_all_projects",
                 "tenant_id",
                 "workspace"
@@ -213,6 +217,28 @@ public sealed class RoutingSchemaGuardTests
         var result = guard.Analyze(schema);
         Assert.AreEqual(RoutingSchemaStatus.RequiredUnsupportedSelector, result.Status);
         Assert.IsFalse(result.IsAutomaticallyRoutable);
+    }
+
+    /// <summary>
+    /// Verifies that a required multi-project selector cannot be used to bypass the single-project context routing contract.
+    /// </summary>
+    [TestMethod]
+    public void AnalyzeRejectsRequiredAllProjectsSelector()
+    {
+        var guard = new RoutingSchemaGuard();
+        var schema = ParseSchema(
+            """
+            {
+              "type": "object",
+              "properties": {
+                "project": { "type": "string" },
+                "all_projects": { "type": "boolean" }
+              },
+              "required": ["all_projects"]
+            }
+            """);
+
+        Assert.AreEqual(RoutingSchemaStatus.RequiredUnsupportedSelector, guard.Analyze(schema).Status);
     }
 
     /// <summary>

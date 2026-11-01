@@ -58,14 +58,15 @@ public sealed class BasicMemoryMirroredToolCatalogTests
         await mirroredCatalog.InitializeAsync(cancellationTokenSource.Token);
         Assert.IsTrue(mirroredCatalog.IsInitialized);
         Assert.HasCount(1, mirroredCatalog.Tools);
+        Assert.IsFalse(mirroredCatalog.TryGetTool("bm_project", out _), "The consolidated project lifecycle tool must not be mirrored.");
 
         var tool = mirroredCatalog.Tools.Single();
-        Assert.AreEqual("read_note", tool.Name);
+        Assert.AreEqual("bm_read", tool.Name);
 
         var properties = tool.PublicInputSchema.GetProperty("properties");
         Assert.IsTrue(properties.TryGetProperty("identifier", out _));
         Assert.IsTrue(properties.TryGetProperty("context_id", out _));
-        Assert.IsFalse(properties.TryGetProperty("project_id", out _));
+        Assert.IsFalse(properties.TryGetProperty("project", out _));
     }
 
     /// <summary>
@@ -97,9 +98,9 @@ public sealed class BasicMemoryMirroredToolCatalogTests
         using var mirroredCatalog = new BasicMemoryMirroredToolCatalog(upstreamCatalog, NullLogger<BasicMemoryMirroredToolCatalog>.Instance);
 
         await mirroredCatalog.InitializeAsync(cancellationTokenSource.Token);
-        Assert.IsTrue(mirroredCatalog.TryGetTool("read_note", out var tool));
+        Assert.IsTrue(mirroredCatalog.TryGetTool("bm_read", out var tool));
         Assert.IsNotNull(tool);
-        Assert.IsFalse(mirroredCatalog.TryGetTool("READ_NOTE", out _));
+        Assert.IsFalse(mirroredCatalog.TryGetTool("BM_READ", out _));
     }
 
     #endregion
@@ -157,8 +158,8 @@ public sealed class BasicMemoryMirroredToolCatalogTests
         /// <summary>
         /// Provides a representative automatically routed Basic Memory tool.
         /// </summary>
-        [McpServerTool(Name = "read_note", ReadOnly = true)]
-        public static string ReadNote(string identifier, string? project_id = null)
+        [McpServerTool(Name = "bm_read", ReadOnly = true)]
+        public static string ReadNote(string identifier, string project)
         {
             return identifier;
         }
@@ -173,12 +174,12 @@ public sealed class BasicMemoryMirroredToolCatalogTests
         }
 
         /// <summary>
-        /// Provides a compatibility tool that requires an explicit proxy adapter.
+        /// Provides a consolidated project-management tool whose create command must never be mirrored.
         /// </summary>
-        [McpServerTool(Name = "search", ReadOnly = true)]
-        public static string Search(string query, string? project_id = null)
+        [McpServerTool(Name = "bm_project", ReadOnly = false)]
+        public static string Project(string command, string project)
         {
-            return query;
+            return command;
         }
     }
 

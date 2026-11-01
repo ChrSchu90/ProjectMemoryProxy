@@ -19,21 +19,18 @@ internal sealed class BasicMemoryToolClassifier
 
     private static readonly HashSet<string> ProjectLifecycleTools = new(StringComparer.Ordinal)
     {
-        BasicMemoryToolNames.CreateMemoryProject,
-        BasicMemoryToolNames.DeleteProject,
-        BasicMemoryToolNames.ListMemoryProjects
+        BasicMemoryToolNames.Project,
+        BasicMemoryToolNames.ProjectDelete
     };
 
-    private static readonly HashSet<string> GlobalAllowlistedTools = new(StringComparer.Ordinal)
-    {
-        BasicMemoryToolNames.Diagnostics
-    };
-
+    // Keep unscoped manuals, hosted agents and legacy compatibility tools outside the PMP public surface.
     private static readonly HashSet<string> IntentionallyBlockedTools = new(StringComparer.Ordinal)
     {
-        BasicMemoryToolNames.ListWorkspaces,  // Cloud workspace/tenant routing is outside the local-only ProjectMemoryProxy MVP.
-        BasicMemoryToolNames.Fetch,           // OpenAI compatibility tool; its standard fetch(id) contract cannot carry the explicit context_id required for fail-closed project routing.
-        BasicMemoryToolNames.Search           // OpenAI compatibility tool; its standard search(query) contract cannot carry the explicit context_id required for fail-closed project routing.
+        BasicMemoryToolNames.Manual,
+        "bm_agent",
+        "fetch",
+        "list_workspaces",
+        "search"
     };
 
     #endregion
@@ -77,12 +74,6 @@ internal sealed class BasicMemoryToolClassifier
 
         if (ProjectLifecycleTools.Contains(toolName))
             return ToolRoutingClassification.ProjectLifecycle;
-
-        if (GlobalAllowlistedTools.Contains(toolName))
-        {
-            routingAnalysis = _routingSchemaGuard.Analyze(inputSchema);
-            return ToolRoutingClassification.GlobalAllowlisted;
-        }
 
         if (IntentionallyBlockedTools.Contains(toolName))
             return ToolRoutingClassification.IntentionallyBlocked;

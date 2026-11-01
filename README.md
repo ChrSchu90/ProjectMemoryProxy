@@ -38,8 +38,8 @@ flowchart LR
 
 1. **Discover tools.** On startup, the proxy connects to Basic Memory, discovers its MCP tools, and exposes only tools whose project routing can be controlled safely. Tool schemas are adapted so clients cannot override the upstream project selector.
 2. **Reconcile projects.** The proxy compares Basic Memory's project inventory with its local SQLite registry. It registers newly discovered project identities and deactivates missing ones, but **never creates context bindings automatically**.
-3. **Resolve a request.** For a project-scoped call such as `search_notes`, `read_note`, or `write_note`, the proxy validates the supplied `context_id` and requires an active binding to an active project routing.
-4. **Forward to Basic Memory.** The proxy removes client-controlled routing arguments, injects the validated Basic Memory project UUID or name as required by the upstream tool, and returns the MCP result.
+3. **Resolve a request.** For a project-scoped call such as `bm_search`, `bm_read`, or `bm_write`, the proxy validates the supplied `context_id` and requires an active binding to an active project routing.
+4. **Forward to Basic Memory.** The proxy removes client-controlled routing arguments, injects the validated Basic Memory project UUID into Basic Memory 1.0's `project` selector, and returns the MCP result.
 5. **Fail closed.** Missing bindings, inconsistent project identities, and upstream tools with unsafe or unknown routing semantics are rejected rather than guessed.
 
 Each Basic Memory project has a **human-readable name** and a **UUID assigned by Basic Memory**. ProjectMemoryProxy keeps this pair consistent in its own SQLite control plane. A `project_path` supplied when creating a project is different: it is an absolute filesystem path on the Basic Memory host/container, not the project's name or UUID.
@@ -56,7 +56,9 @@ Trusted clients can manage projects and their bindings through the same MCP conn
 | Create or delete projects | `create_project`, `delete_project` |
 | Connect or disconnect contexts | `bind_context`, `unbind_context` |
 
-Project creation and deletion are carried out through Basic Memory's lifecycle tools, with identity validation and recovery handling in the proxy. `basic_memory_diagnostics` is also exposed as a global diagnostic tool without a project context.
+Project discovery and creation use Basic Memory 1.0's `bm_project` tool internally. Deletion uses the separate `bm_project_delete` tool, which is disabled upstream unless the Basic Memory host explicitly enables `BASIC_MEMORY_ENABLE_PROJECT_DELETE=true`. When disabled, PMP's `delete_project` fails without deleting the local project routing or its context bindings. Never enable this upstream destructive operation for untrusted MCP clients.
+
+Neither `bm_project` nor `bm_project_delete` is exposed as a generic mirrored tool. The unscoped upstream documentation tool `bm_man` is intentionally hidden as well. Agents should use the PMP-specific project-memory skill references in `examples/agent settings/` for supported search, note-editing and schema workflows. The readiness check uses the read-only `bm_project(command="list")` operation; the legacy `basic_memory_diagnostics` tool no longer exists.
 
 ## Scope and trust model
 
@@ -66,9 +68,11 @@ The current scope is deliberately narrow:
 
 - Local/self-hosted Basic Memory projects; no Basic Memory Cloud workspace or tenant routing.
 - Explicit project-scoped memories; no cross-project or general-knowledge memory layer.
-- The Basic Memory compatibility tools `search` and `fetch` are not exposed because they do not carry the required explicit `context_id`. Use the routed `search_notes` and `read_note` tools instead.
+- Project-scoped Basic Memory 1.0 tools are exposed under their canonical `bm_*` names, with mandatory PMP `context_id` replacing upstream project selectors. For `bm_search`, cross-project inputs (`projects` and `all_projects`) are removed and cannot be supplied by clients. Project management uses only the proxy-owned tools; no implicit global/default project search is exposed.
 
 ## Running ProjectMemoryProxy
+
+**Upstream compatibility:** This revision targets the Basic Memory 1.0 MCP contract. Basic Memory 0.24.x uses a different tool surface and is not compatible with this adapter. After deployment, reconnect MCP clients and refresh their tool schemas/permissions; the previous `read_note`, `search_notes`, and `write_note` names have no aliases in Basic Memory 1.0.
 
 The repository provides a [Docker image](https://github.com/ChrSchu90/ProjectMemoryProxy/pkgs/container/project-memory-proxy) and an [example Docker Compose stack](examples/compose.yml) combining Basic Memory, ProjectMemoryProxy, and the OpenAI Secure MCP Tunnel. ProjectMemoryProxy keeps its own routing metadata in a persistent data directory.
 

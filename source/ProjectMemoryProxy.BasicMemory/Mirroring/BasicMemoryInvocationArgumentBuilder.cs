@@ -97,7 +97,9 @@ internal sealed class BasicMemoryInvocationArgumentBuilder
 
                 break;
             case ProjectSelectorKind.ProjectName:
-                upstreamArguments[RoutingPropertyNames.Project] = resolution.MemoryProjectName;
+                // Basic Memory 1.0 accepts its canonical project UUID in the `project` field.
+                // Preserve GUID identity even if a local project is renamed between reconciliations.
+                upstreamArguments[RoutingPropertyNames.Project] = memoryProjectId.ToString("D");
                 break;
             default:
                 throw new InvalidOperationException("An automatically routable tool must use a supported project selector.");

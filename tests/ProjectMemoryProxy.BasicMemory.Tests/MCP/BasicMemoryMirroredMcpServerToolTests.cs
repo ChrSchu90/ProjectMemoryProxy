@@ -67,7 +67,7 @@ public sealed class BasicMemoryMirroredMcpServerToolTests
         using var mirroredCatalog = new BasicMemoryMirroredToolCatalog(upstreamCatalog, NullLogger<BasicMemoryMirroredToolCatalog>.Instance);
 
         await mirroredCatalog.InitializeAsync(cancellationToken);
-        Assert.IsTrue(mirroredCatalog.TryGetTool("read_note", out var mirroredTool));
+        Assert.IsTrue(mirroredCatalog.TryGetTool("bm_read", out var mirroredTool));
         Assert.IsNotNull(mirroredTool);
 
         var routingManager = new RoutingManager(new StubProjectRegistry(new ProjectRoute(MemoryProjectId, MemoryProjectName, Status.Active, Status.Active)), NullLogger<RoutingManager>.Instance);
@@ -80,7 +80,7 @@ public sealed class BasicMemoryMirroredMcpServerToolTests
         Assert.HasCount(1, tools);
 
         var publicTool = tools.Single();
-        Assert.AreEqual("read_note", publicTool.Name);
+        Assert.AreEqual("bm_read", publicTool.Name);
 
         AssertPublicSchema(publicTool.ProtocolTool.InputSchema);
         var result = await publicTool.CallAsync(new Dictionary<string, object?>
@@ -184,10 +184,10 @@ public sealed class BasicMemoryMirroredMcpServerToolTests
         /// <summary>
         /// Provides a representative project-routed Basic Memory operation.
         /// </summary>
-        [McpServerTool(Name = "read_note", ReadOnly = true)]
-        public static string ReadNote(string identifier, string? project_id = null)
+        [McpServerTool(Name = "bm_read", ReadOnly = true)]
+        public static string ReadNote(string identifier, string project)
         {
-            return $"{identifier}|{project_id}";
+            return $"{identifier}|{project}";
         }
     }
 
