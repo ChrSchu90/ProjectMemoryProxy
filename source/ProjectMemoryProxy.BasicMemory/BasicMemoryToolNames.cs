@@ -8,39 +8,20 @@ internal static class BasicMemoryToolNames
     #region Static Fields
 
     /// <summary>
-    /// The upstream Basic Memory diagnostics tool.
+    /// The upstream Basic Memory project listing, creation and recent-activity tool.
+    /// This tool is reserved for the PMP control plane and never mirrored publicly.
     /// </summary>
-    internal const string Diagnostics = "basic_memory_diagnostics";
+    internal const string Project = "bm_project";
 
     /// <summary>
-    /// The upstream Basic Memory project-listing tool.
+    /// The separately enabled upstream Basic Memory project deletion tool.
     /// </summary>
-    internal const string ListMemoryProjects = "list_memory_projects";
+    internal const string ProjectDelete = "bm_project_delete";
 
     /// <summary>
-    /// The upstream Basic Memory project-creation tool.
+    /// The upstream read-only built-in manual tool.
     /// </summary>
-    internal const string CreateMemoryProject = "create_memory_project";
-
-    /// <summary>
-    /// The upstream Basic Memory project-deletion tool.
-    /// </summary>
-    internal const string DeleteProject = "delete_project";
-
-    /// <summary>
-    /// The upstream Basic Memory workspace-listing tool.
-    /// </summary>
-    internal const string ListWorkspaces = "list_workspaces";
-
-    /// <summary>
-    /// The upstream Basic Memory OpenAI-compatible search tool.
-    /// </summary>
-    internal const string Search = "search";
-
-    /// <summary>
-    /// The upstream Basic Memory OpenAI-compatible fetch tool.
-    /// </summary>
-    internal const string Fetch = "fetch";
+    internal const string Manual = "bm_man";
 
     #endregion
 }

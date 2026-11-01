@@ -109,9 +109,9 @@ public sealed class BasicMemoryServiceCollectionExtensionsTests
         await using var proxyClient = await CreateMcpClientAsync(GetMcpEndpoint(proxyServer), cancellationToken);
         var tools = await proxyClient.ListToolsAsync(cancellationToken: cancellationToken);
         Assert.IsTrue(tools.Any(tool => tool.Name == "native_tool"));
-        Assert.IsTrue(tools.Any(tool => tool.Name == "read_note"));
+        Assert.IsTrue(tools.Any(tool => tool.Name == "bm_read"));
 
-        var readNote = tools.Single(tool => tool.Name == "read_note");
+        var readNote = tools.Single(tool => tool.Name == "bm_read");
         var result = await readNote.CallAsync(new Dictionary<string, object?>
         {
             ["identifier"] = "notes/example",
@@ -212,10 +212,10 @@ public sealed class BasicMemoryServiceCollectionExtensionsTests
         /// <summary>
         /// Provides a representative project-routed Basic Memory operation.
         /// </summary>
-        [McpServerTool(Name = "read_note", ReadOnly = true)]
-        public static string ReadNote(string identifier, string? project_id = null)
+        [McpServerTool(Name = "bm_read", ReadOnly = true)]
+        public static string ReadNote(string identifier, string project)
         {
-            return $"{identifier}|{project_id}";
+            return $"{identifier}|{project}";
         }
     }
 
@@ -238,7 +238,7 @@ public sealed class BasicMemoryServiceCollectionExtensionsTests
         /// <summary>
         /// Provides a proxy-owned tool whose name intentionally conflicts with the mirrored upstream tool.
         /// </summary>
-        [McpServerTool(Name = "read_note", ReadOnly = true)]
+        [McpServerTool(Name = "bm_read", ReadOnly = true)]
         public static string ReadNote()
         {
             return "proxy";

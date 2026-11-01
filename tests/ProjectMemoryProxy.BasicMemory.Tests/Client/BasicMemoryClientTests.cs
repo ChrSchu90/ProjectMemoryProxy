@@ -58,9 +58,9 @@ public sealed class BasicMemoryClientTests
         await using var client = new BasicMemoryClient(options, NullLoggerFactory.Instance, NullLogger<BasicMemoryClient>.Instance);
 
         var tools = await client.ListToolsAsync(cancellationTokenSource.Token);
-        var tool = tools.Single(tool => tool.Name == "search_notes");
+        var tool = tools.Single(tool => tool.Name == "bm_search");
         Assert.AreEqual("Searches notes in Basic Memory.", tool.Description);
-        Assert.AreEqual("search_notes", tool.ProtocolTool.Name);
+        Assert.AreEqual("bm_search", tool.ProtocolTool.Name);
 
         var properties = tool.ProtocolTool.InputSchema.GetProperty("properties");
         Assert.IsTrue(properties.TryGetProperty("query", out _));
@@ -99,7 +99,7 @@ public sealed class BasicMemoryClientTests
             });
 
             await using var client = new BasicMemoryClient(options, NullLoggerFactory.Instance, NullLogger<BasicMemoryClient>.Instance);
-            var tool = (await client.ListToolsAsync(source.Token)).Single(item => item.Name == "search_notes");
+            var tool = (await client.ListToolsAsync(source.Token)).Single(item => item.Name == "bm_search");
 
             var first = await tool.CallAsync(new Dictionary<string, object?> { ["query"] = "before" }, cancellationToken: source.Token);
             Assert.AreNotEqual(true, first.IsError);
@@ -179,7 +179,7 @@ public sealed class BasicMemoryClientTests
         /// <summary>
         /// Provides a representative Basic Memory search tool for MCP discovery tests.
         /// </summary>
-        [McpServerTool(Name = "search_notes", ReadOnly = true)]
+        [McpServerTool(Name = "bm_search", ReadOnly = true)]
         [System.ComponentModel.Description("Searches notes in Basic Memory.")]
         public static string SearchNotes([System.ComponentModel.Description("The search query.")] string query)
         {

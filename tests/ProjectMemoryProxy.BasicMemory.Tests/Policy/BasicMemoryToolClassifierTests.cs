@@ -51,10 +51,10 @@ public sealed class BasicMemoryToolClassifierTests
     }
 
     /// <summary>
-    /// Verifies that an existing Basic Memory tool remains automatically routable when its schema exposes supported local project routing.
+    /// Verifies that the Basic Memory 1.0 search schema is automatically routable when cross-project selectors are optional.
     /// </summary>
     [TestMethod]
-    public void ClassifyAutomaticallyRoutesExistingToolBySchema()
+    public void ClassifyAutomaticallyRoutesSearchWithOptionalCrossProjectSelectors()
     {
         var classifier = new BasicMemoryToolClassifier();
         var schema = ParseSchema(
@@ -62,16 +62,15 @@ public sealed class BasicMemoryToolClassifierTests
             {
               "type": "object",
               "properties": {
-                "query": { "type": "string" },
+                "query": { "type": ["string", "null"] },
                 "project": { "type": ["string", "null"] },
-                "project_id": { "type": ["string", "null"] },
-                "search_all_projects": { "type": "boolean" }
+                "projects": { "type": ["array", "null"] },
+                "all_projects": { "type": "boolean" }
               }
             }
             """);
 
-        var result = classifier.Classify("search_notes", schema);
-        Assert.AreEqual(ToolRoutingClassification.AutomaticallyRouted, result);
+        Assert.AreEqual(ToolRoutingClassification.AutomaticallyRouted, classifier.Classify("bm_search", schema));
     }
 
     /// <summary>
@@ -139,9 +138,8 @@ public sealed class BasicMemoryToolClassifierTests
     /// Verifies that local Basic Memory project-management tools are classified as project lifecycle operations.
     /// </summary>
     [TestMethod]
-    [DataRow("create_memory_project")]
-    [DataRow("delete_project")]
-    [DataRow("list_memory_projects")]
+    [DataRow("bm_project")]
+    [DataRow("bm_project_delete")]
     public void ClassifyMarksProjectManagementAsLifecycle(string toolName)
     {
         var classifier = new BasicMemoryToolClassifier();
@@ -151,18 +149,39 @@ public sealed class BasicMemoryToolClassifierTests
     }
 
     /// <summary>
-    /// Verifies that cloud workspace discovery is intentionally blocked because workspace routing is outside the supported local proxy scope.
+    /// Verifies that the consolidated Basic Memory 1.0 project tool cannot bypass PMP lifecycle policy even though it has a project selector.
     /// </summary>
     [TestMethod]
-    [DataRow("search")]
-    [DataRow("fetch")]
-    [DataRow("list_workspaces")]
-    public void ClassifyMarksWorkspaceDiscoveryAsIntentionallyBlocked(string toolName)
+    public void ClassifyHidesProjectManagementWithRoutableSchema()
     {
         var classifier = new BasicMemoryToolClassifier();
+        var schema = ParseSchema(
+            """
+            {
+              "type": "object",
+              "properties": {
+                "command": { "enum": ["list", "create", "recent"], "type": "string" },
+                "project": { "type": ["string", "null"] }
+              }
+            }
+            """);
 
-        var result = classifier.Classify(toolName, ParseSchema("""{"type":"object"}"""));
-        Assert.AreEqual(ToolRoutingClassification.IntentionallyBlocked, result);
+        Assert.AreEqual(ToolRoutingClassification.ProjectLifecycle, classifier.Classify("bm_project", schema));
+    }
+
+    /// <summary>
+    /// Verifies that deprecated unscoped compatibility tool names stay blocked if a later upstream release reintroduces them.
+    /// </summary>
+    [TestMethod]
+    [DataRow("fetch")]
+    [DataRow("search")]
+    [DataRow("list_workspaces")]
+    public void ClassifyKeepsLegacyUnscopedToolsBlocked(string toolName)
+    {
+        var classifier = new BasicMemoryToolClassifier();
+        var schema = ParseSchema("""{"type":"object","properties":{"project":{"type":"string"}}}""");
+
+        Assert.AreEqual(ToolRoutingClassification.IntentionallyBlocked, classifier.Classify(toolName, schema));
     }
 
     /// <summary>
@@ -182,19 +201,19 @@ public sealed class BasicMemoryToolClassifierTests
             }
             """);
 
-        var result = classifier.Classify("Search", schema);
+        var result = classifier.Classify("BM_PROJECT", schema);
         Assert.AreEqual(ToolRoutingClassification.AutomaticallyRouted, result);
     }
 
     /// <summary>
-    /// Verifies that Basic Memory diagnostics are explicitly approved as a global operation.
+    /// Verifies that the Basic Memory manual is explicitly approved as a read-only global operation.
     /// </summary>
     [TestMethod]
-    public void ClassifyAllowsDiagnosticsAsGlobalOperation()
+    public void ClassifyAllowsManualAsGlobalOperation()
     {
         var classifier = new BasicMemoryToolClassifier();
 
-        var result = classifier.Classify("basic_memory_diagnostics", ParseSchema("""{"type":"object","properties":{}}"""));
+        var result = classifier.Classify("bm_man", ParseSchema("""{"type":"object","properties":{}}"""));
         Assert.AreEqual(ToolRoutingClassification.GlobalAllowlisted, result);
     }
 

@@ -39,57 +39,44 @@ public sealed class BasicMemoryContractTests
 
     private static readonly string[] AutomaticallyRoutedTools =
     [
-        "build_context",
-        "cat",
-        "delete_note",
-        "edit_note",
-        "find",
-        "grep",
-        "list_directory",
-        "ls",
-        "man",
-        "move_note",
-        "read_content",
-        "read_note",
-        "recent_activity",
-        "schema_diff",
-        "schema_infer",
-        "schema_validate",
-        "search_notes",
-        "tail",
-        "view_note",
-        "write_note"
+        "bm_context",
+        "bm_delete",
+        "bm_edit",
+        "bm_find",
+        "bm_list",
+        "bm_move",
+        "bm_read",
+        "bm_schema",
+        "bm_search",
+        "bm_write"
     ];
 
     private static readonly string[] GlobalAllowlistedTools =
     [
-        "basic_memory_diagnostics"
+        "bm_man"
     ];
 
-    private static readonly string[] ExplicitAdapterTools =
-    [
-        //"some_placeholder_tool"
-    ];
+    private static readonly string[] ExplicitAdapterTools = [];
 
     private static readonly string[] ProjectLifecycleTools =
     [
-        "create_memory_project",
-        "delete_project",
-        "list_memory_projects"
+        "bm_project"
     ];
 
-    private static readonly string[] IntentionallyBlockedTools =
+    // Basic Memory 1.0 hides this destructive tool unless the host enables project deletion.
+    private static readonly string[] OptionalProjectLifecycleTools =
     [
-        "list_workspaces",
-        "fetch",
-        "search"
+        "bm_project_delete"
     ];
+
+    private static readonly string[] IntentionallyBlockedTools = [];
 
     private static readonly HashSet<string> ForbiddenPublicRoutingProperties = new(StringComparer.Ordinal)
     {
         "project",
         "project_id",
         "projects",
+        "all_projects",
         "search_all_projects",
         "tenant",
         "tenant_id",
@@ -154,11 +141,11 @@ public sealed class BasicMemoryContractTests
             .ToArray();
 
         WriteProxySnapshot(classifications, proxyTools);
-        AssertToolNames(GetExpectedUpstreamToolNames(), classifications.Select(tool => tool.Name), "reviewed Basic Memory upstream contract");
+        AssertToolNames(GetExpectedUpstreamToolNames(classifications.Select(tool => tool.Name)), classifications.Select(tool => tool.Name), "reviewed Basic Memory upstream contract");
         AssertClassification(AutomaticallyRoutedTools, classifications, ToolRoutingClassification.AutomaticallyRouted);
         AssertClassification(GlobalAllowlistedTools, classifications, ToolRoutingClassification.GlobalAllowlisted);
         AssertClassification(ExplicitAdapterTools, classifications, ToolRoutingClassification.ExplicitAdapter);
-        AssertClassification(ProjectLifecycleTools, classifications, ToolRoutingClassification.ProjectLifecycle);
+        AssertClassification(GetExpectedLifecycleToolNames(classifications.Select(tool => tool.Name)), classifications, ToolRoutingClassification.ProjectLifecycle);
         AssertClassification(IntentionallyBlockedTools, classifications, ToolRoutingClassification.IntentionallyBlocked);
         AssertToolNames(
             Array.Empty<string>(),
@@ -189,12 +176,12 @@ public sealed class BasicMemoryContractTests
             AssertAutomaticallyRoutedPublicSchema(automaticallyRoutedToolName, proxyToolsByName[automaticallyRoutedToolName].ProtocolTool.InputSchema);
         }
 
-        var diagnostics = proxyToolsByName["basic_memory_diagnostics"];
-        Assert.IsFalse(diagnostics.ProtocolTool.InputSchema.GetProperty("properties").TryGetProperty("context_id", out _));
+        var manual = proxyToolsByName["bm_man"];
+        Assert.IsFalse(manual.ProtocolTool.InputSchema.GetProperty("properties").TryGetProperty("context_id", out _));
 
-        var diagnosticsResult = await diagnostics.CallAsync(new Dictionary<string, object?>(), cancellationToken: cancellationToken);
-        var diagnosticsText = string.Join(Environment.NewLine, diagnosticsResult.Content.OfType<TextContentBlock>().Select(block => block.Text));
-        Assert.Contains("# Basic Memory Diagnostics", diagnosticsText);
+        var manualResult = await manual.CallAsync(new Dictionary<string, object?>(), cancellationToken: cancellationToken);
+        Assert.IsFalse(manualResult.IsError is true, "The globally allowed Basic Memory manual must be readable.");
+        Assert.IsTrue(manualResult.Content.Count > 0);
     }
 
     #endregion
@@ -222,15 +209,21 @@ public sealed class BasicMemoryContractTests
         return endpoint;
     }
 
-    private static string[] GetExpectedUpstreamToolNames()
+    private static string[] GetExpectedUpstreamToolNames(IEnumerable<string> discoveredToolNames)
     {
         return AutomaticallyRoutedTools
             .Concat(GlobalAllowlistedTools)
             .Concat(ExplicitAdapterTools)
-            .Concat(ProjectLifecycleTools)
+            .Concat(GetExpectedLifecycleToolNames(discoveredToolNames))
             .Concat(IntentionallyBlockedTools)
             .OrderBy(name => name, StringComparer.Ordinal)
             .ToArray();
+    }
+
+    private static string[] GetExpectedLifecycleToolNames(IEnumerable<string> discoveredToolNames)
+    {
+        var discoveredNames = new HashSet<string>(discoveredToolNames, StringComparer.Ordinal);
+        return ProjectLifecycleTools.Concat(OptionalProjectLifecycleTools.Where(discoveredNames.Contains)).ToArray();
     }
 
     private static async Task<WebApplication> StartProxyServerAsync(Uri basicMemoryEndpoint, CancellationToken cancellationToken)
@@ -372,10 +365,10 @@ public sealed class BasicMemoryContractTests
         Console.WriteLine($"Endpoint: {endpoint}");
         Console.WriteLine($"Upstream tools: {classifications.Count}");
 
-        var reviewedToolNames = GetExpectedUpstreamToolNames();
         var upstreamToolNames = classifications
                 .Select(tool => tool.Name)
                 .ToArray();
+        var reviewedToolNames = GetExpectedUpstreamToolNames(upstreamToolNames);
 
         var missingReviewedTools = reviewedToolNames
                 .Except(upstreamToolNames, StringComparer.Ordinal)
@@ -442,7 +435,7 @@ public sealed class BasicMemoryContractTests
         if (ExplicitAdapterTools.Contains(toolName, StringComparer.Ordinal))
             return ToolRoutingClassification.ExplicitAdapter;
 
-        if (ProjectLifecycleTools.Contains(toolName, StringComparer.Ordinal))
+        if (ProjectLifecycleTools.Contains(toolName, StringComparer.Ordinal) || OptionalProjectLifecycleTools.Contains(toolName, StringComparer.Ordinal))
             return ToolRoutingClassification.ProjectLifecycle;
 
         if (IntentionallyBlockedTools.Contains(toolName, StringComparer.Ordinal))

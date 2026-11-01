@@ -78,12 +78,13 @@ public sealed class BasicMemoryInvocationArgumentBuilderTests
     }
 
     /// <summary>
-    /// Verifies that a project-name-only upstream contract receives the validated Basic Memory project name.
+    /// Verifies that a Basic Memory 1.0 <c>project</c> selector receives the canonical project UUID rather than a mutable name.
     /// </summary>
     [TestMethod]
-    public async Task BuildAsyncInjectsProjectName()
+    public async Task BuildAsyncInjectsCanonicalProjectIdIntoProjectSelector()
     {
-        var builder = CreateBuilder(new ProjectRoute(Guid.NewGuid(), "project-memory-proxy", Status.Active, Status.Active));
+        var memoryProjectId = Guid.NewGuid();
+        var builder = CreateBuilder(new ProjectRoute(memoryProjectId, "project-memory-proxy", Status.Active, Status.Active));
         var routingAnalysis = CreateProjectNameAnalysis();
         var result = await builder.BuildAsync(
                          routingAnalysis,
@@ -93,7 +94,7 @@ public sealed class BasicMemoryInvocationArgumentBuilderTests
                              ["context_id"] = ParseJson("\"git:github.com/ChrSchu90/ProjectMemoryProxy\"")
                          });
 
-        Assert.AreEqual("project-memory-proxy", result["project"]);
+        Assert.AreEqual(memoryProjectId.ToString("D"), result["project"]);
         Assert.IsFalse(result.ContainsKey("project_id"));
     }
 

@@ -337,10 +337,10 @@ public sealed class BasicMemoryProjectDirectoryTests
         /// <summary>
         /// Provides the structured Basic Memory project-list response used by project directory tests.
         /// </summary>
-        [McpServerTool(Name = "list_memory_projects", ReadOnly = true, UseStructuredContent = true)]
-        public ProjectListEnvelope ListMemoryProjects(string output_format = "text")
+        [McpServerTool(Name = "bm_project", ReadOnly = false, UseStructuredContent = true)]
+        public ProjectListEnvelope ListMemoryProjects(string command, string output_format = "text")
         {
-            if (!string.Equals(output_format, "json", StringComparison.Ordinal))
+            if (!string.Equals(command, "list", StringComparison.Ordinal) || !string.Equals(output_format, "json", StringComparison.Ordinal))
                 throw new InvalidOperationException("The project directory must request the JSON Basic Memory project-list contract.");
 
             return new ProjectListEnvelope(new ProjectListPayload(_state.Projects));

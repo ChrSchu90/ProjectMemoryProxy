@@ -19,21 +19,21 @@ internal sealed class BasicMemoryToolClassifier
 
     private static readonly HashSet<string> ProjectLifecycleTools = new(StringComparer.Ordinal)
     {
-        BasicMemoryToolNames.CreateMemoryProject,
-        BasicMemoryToolNames.DeleteProject,
-        BasicMemoryToolNames.ListMemoryProjects
+        BasicMemoryToolNames.Project,
+        BasicMemoryToolNames.ProjectDelete
     };
 
     private static readonly HashSet<string> GlobalAllowlistedTools = new(StringComparer.Ordinal)
     {
-        BasicMemoryToolNames.Diagnostics
+        BasicMemoryToolNames.Manual
     };
 
+    // Keep intentionally excluded legacy compatibility tools blocked if a future upstream version reintroduces them.
     private static readonly HashSet<string> IntentionallyBlockedTools = new(StringComparer.Ordinal)
     {
-        BasicMemoryToolNames.ListWorkspaces,  // Cloud workspace/tenant routing is outside the local-only ProjectMemoryProxy MVP.
-        BasicMemoryToolNames.Fetch,           // OpenAI compatibility tool; its standard fetch(id) contract cannot carry the explicit context_id required for fail-closed project routing.
-        BasicMemoryToolNames.Search           // OpenAI compatibility tool; its standard search(query) contract cannot carry the explicit context_id required for fail-closed project routing.
+        "fetch",
+        "list_workspaces",
+        "search"
     };
 
     #endregion

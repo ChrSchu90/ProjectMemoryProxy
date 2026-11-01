@@ -174,7 +174,7 @@ public sealed class ProjectMemoryProxyContractTests
                 Assert.AreEqual("bound", rebindResult.GetProperty("status").GetString());
 
                 var noteContent = $"ProjectMemoryProxy live contract {testId}";
-                var writeResult = await tools["write_note"].CallAsync(new Dictionary<string, object?>
+                var writeResult = await tools["bm_write"].CallAsync(new Dictionary<string, object?>
                 {
                     ["title"] = "Contract Note",
                     ["content"] = noteContent,
@@ -182,15 +182,15 @@ public sealed class ProjectMemoryProxyContractTests
                     ["context_id"] = contextId
                 }, cancellationToken: cancellationToken);
 
-                AssertToolSucceeded(writeResult, "write_note");
+                AssertToolSucceeded(writeResult, "bm_write");
 
-                var readResult = await tools["read_note"].CallAsync(new Dictionary<string, object?>
+                var readResult = await tools["bm_read"].CallAsync(new Dictionary<string, object?>
                 {
                     ["identifier"] = "Contract Note",
                     ["context_id"] = contextId
                 }, cancellationToken: cancellationToken);
 
-                AssertToolSucceeded(readResult, "read_note");
+                AssertToolSucceeded(readResult, "bm_read");
                 var readText = string.Join(Environment.NewLine, readResult.Content.OfType<TextContentBlock>().Select(block => block.Text));
                 Assert.Contains(noteContent, readText);
 
@@ -264,6 +264,11 @@ public sealed class ProjectMemoryProxyContractTests
             {
                 await using var client = await CreateMcpClientAsync(GetMcpEndpoint(proxyServer), cancellationToken);
                 var tools = await GetToolsByNameAsync(client, cancellationToken);
+                AssertProxyToolSurface(tools);
+                var publicSearchProperties = tools["bm_search"].ProtocolTool.InputSchema.GetProperty("properties");
+                Assert.IsFalse(publicSearchProperties.TryGetProperty("projects", out _));
+                Assert.IsFalse(publicSearchProperties.TryGetProperty("all_projects", out _));
+                Assert.IsFalse(publicSearchProperties.TryGetProperty("project", out _));
 
                 async Task<string> CreateAndBindAsync(string projectName, string contextId)
                 {
@@ -295,13 +300,13 @@ public sealed class ProjectMemoryProxyContractTests
 
                 async Task WriteAsync(string contextId, string content)
                 {
-                    AssertToolSucceeded(await tools["write_note"].CallAsync(new Dictionary<string, object?>
+                    AssertToolSucceeded(await tools["bm_write"].CallAsync(new Dictionary<string, object?>
                     {
                         ["title"] = "Same Title",
                         ["directory"] = "isolation-tests",
                         ["content"] = content,
                         ["context_id"] = contextId
-                    }, cancellationToken: cancellationToken), "write_note");
+                    }, cancellationToken: cancellationToken), "bm_write");
                 }
 
                 await WriteAsync(contextA, markerA);
@@ -309,12 +314,12 @@ public sealed class ProjectMemoryProxyContractTests
 
                 async Task<string> ReadAsync(string contextId)
                 {
-                    var result = await tools["read_note"].CallAsync(new Dictionary<string, object?>
+                    var result = await tools["bm_read"].CallAsync(new Dictionary<string, object?>
                     {
                         ["identifier"] = "Same Title",
                         ["context_id"] = contextId
                     }, cancellationToken: cancellationToken);
-                    AssertToolSucceeded(result, "read_note");
+                    AssertToolSucceeded(result, "bm_read");
                     return string.Join(Environment.NewLine, result.Content.OfType<TextContentBlock>().Select(block => block.Text));
                 }
 
@@ -324,6 +329,15 @@ public sealed class ProjectMemoryProxyContractTests
                 Assert.IsFalse(textA.Contains(markerB, StringComparison.Ordinal));
                 Assert.Contains(markerB, textB);
                 Assert.IsFalse(textB.Contains(markerA, StringComparison.Ordinal));
+
+                // An explicit project UUID takes priority over a qualified note path upstream.
+                // The foreign path must be resolved inside project A and must not read project B's note.
+                var crossProjectRead = await tools["bm_read"].CallAsync(new Dictionary<string, object?>
+                {
+                    ["identifier"] = $"{projectB}/isolation-tests/Same Title.md",
+                    ["context_id"] = contextA
+                }, cancellationToken: cancellationToken);
+                Assert.IsTrue(crossProjectRead.IsError is true, "A path addressed to project B must not read its note under context A.");
             }
             finally
             {
@@ -435,7 +449,7 @@ public sealed class ProjectMemoryProxyContractTests
 
     private static void AssertProxyToolSurface(IReadOnlyDictionary<string, McpClientTool> tools)
     {
-        Assert.HasCount(28, tools, "The complete proxy should expose 21 Basic Memory-derived tools plus seven proxy-owned tools.");
+        Assert.HasCount(18, tools, "The complete proxy should expose 11 Basic Memory-derived tools plus seven proxy-owned tools.");
 
         foreach (var toolName in EnabledProxyOwnedTools)
         {
@@ -447,8 +461,11 @@ public sealed class ProjectMemoryProxyContractTests
             Assert.IsFalse(tools.ContainsKey(toolName), $"Prepared status-transition tool '{toolName}' must remain hidden.");
         }
 
-        Assert.IsTrue(tools.ContainsKey("write_note"), "The routed Basic Memory write tool must be exposed.");
-        Assert.IsTrue(tools.ContainsKey("read_note"), "The routed Basic Memory read tool must be exposed.");
+        Assert.IsTrue(tools.ContainsKey("bm_write"), "The routed Basic Memory write tool must be exposed.");
+        Assert.IsTrue(tools.ContainsKey("bm_read"), "The routed Basic Memory read tool must be exposed.");
+        Assert.IsTrue(tools.ContainsKey("bm_search"), "The routed Basic Memory search tool must be exposed.");
+        Assert.IsFalse(tools.ContainsKey("bm_project"), "Basic Memory project management must remain exclusive to the PMP control plane.");
+        Assert.IsFalse(tools.ContainsKey("bm_project_delete"), "Basic Memory project deletion must remain exclusive to the PMP control plane.");
     }
 
     private static JsonElement GetStructuredContent(CallToolResult result, string toolName)

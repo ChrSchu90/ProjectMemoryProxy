@@ -78,8 +78,8 @@ public sealed class BasicMemoryStartupHostedServiceTests
         var toolCollection = serverOptions.ToolCollection ??
                              throw new AssertFailedException("The MCP tool collection was not initialized.");
 
-        Assert.IsTrue(toolCollection.TryGetPrimitive("read_note", out _));
-        Assert.IsFalse(toolCollection.TryGetPrimitive("list_memory_projects", out _));
+        Assert.IsTrue(toolCollection.TryGetPrimitive("bm_read", out _));
+        Assert.IsFalse(toolCollection.TryGetPrimitive("bm_project", out _));
     }
 
     /// <summary>
@@ -192,19 +192,19 @@ public sealed class BasicMemoryStartupHostedServiceTests
         /// <summary>
         /// Provides a representative project-routed Basic Memory operation for mirrored-tool startup registration.
         /// </summary>
-        [McpServerTool(Name = "read_note", ReadOnly = true)]
-        public string ReadNote(string identifier, string? project_id = null)
+        [McpServerTool(Name = "bm_read", ReadOnly = true)]
+        public string ReadNote(string identifier, string project)
         {
-            return $"{identifier}|{project_id}";
+            return $"{identifier}|{project}";
         }
 
         /// <summary>
         /// Provides the structured Basic Memory project-list response used by startup reconciliation.
         /// </summary>
-        [McpServerTool(Name = "list_memory_projects", ReadOnly = true, UseStructuredContent = true)]
-        public ProjectListEnvelope ListMemoryProjects(string output_format = "text")
+        [McpServerTool(Name = "bm_project", ReadOnly = false, UseStructuredContent = true)]
+        public ProjectListEnvelope ListMemoryProjects(string command, string output_format = "text")
         {
-            if (!string.Equals(output_format, "json", StringComparison.Ordinal))
+            if (!string.Equals(command, "list", StringComparison.Ordinal) || !string.Equals(output_format, "json", StringComparison.Ordinal))
             {
                 throw new InvalidOperationException("Project reconciliation must request the JSON Basic Memory project-list contract.");
             }

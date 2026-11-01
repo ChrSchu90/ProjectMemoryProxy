@@ -50,31 +50,32 @@ internal sealed class BasicMemoryProjectLifecycle : IBasicMemoryProjectLifecycle
         ArgumentException.ThrowIfNullOrWhiteSpace(memoryProjectName);
         ArgumentException.ThrowIfNullOrWhiteSpace(memoryProjectPath);
 
-        var tool = await _toolCatalog.GetRequiredToolAsync(BasicMemoryToolNames.CreateMemoryProject, cancellationToken).ConfigureAwait(false);
+        var tool = await _toolCatalog.GetRequiredToolAsync(BasicMemoryToolNames.Project, cancellationToken).ConfigureAwait(false);
 
         var result = await tool.CallAsync(new Dictionary<string, object?>
         {
-            ["project_name"] = memoryProjectName,
-            ["project_path"] = memoryProjectPath,
+            ["command"] = "create",
+            ["name"] = memoryProjectName,
+            ["path"] = memoryProjectPath,
             ["set_default"] = false,
             ["output_format"] = "json"
         }, cancellationToken: cancellationToken).ConfigureAwait(false);
 
-        var payload = BasicMemoryToolResultReader.GetObjectPayload(result, BasicMemoryToolNames.CreateMemoryProject);
+        var payload = BasicMemoryToolResultReader.GetObjectPayload(result, BasicMemoryToolNames.Project);
         if (payload.TryGetProperty("error", out var errorElement) && errorElement.ValueKind == JsonValueKind.String)
-            throw new InvalidOperationException($"Basic Memory '{BasicMemoryToolNames.CreateMemoryProject}' failed with error '{errorElement.GetString()}'.");
+            throw new InvalidOperationException($"Basic Memory '{BasicMemoryToolNames.Project}' failed with error '{errorElement.GetString()}'.");
 
-        var returnedName = BasicMemoryToolResultReader.GetRequiredString(payload, "name", BasicMemoryToolNames.CreateMemoryProject);
-        var externalIdValue = BasicMemoryToolResultReader.GetRequiredString(payload, "external_id", BasicMemoryToolNames.CreateMemoryProject);
-        var returnedPath = BasicMemoryToolResultReader.GetRequiredString(payload, "path", BasicMemoryToolNames.CreateMemoryProject);
-        var created = BasicMemoryToolResultReader.GetRequiredBoolean(payload, "created", BasicMemoryToolNames.CreateMemoryProject);
-        var alreadyExists = BasicMemoryToolResultReader.GetRequiredBoolean(payload, "already_exists", BasicMemoryToolNames.CreateMemoryProject);
+        var returnedName = BasicMemoryToolResultReader.GetRequiredString(payload, "name", BasicMemoryToolNames.Project);
+        var externalIdValue = BasicMemoryToolResultReader.GetRequiredString(payload, "external_id", BasicMemoryToolNames.Project);
+        var returnedPath = BasicMemoryToolResultReader.GetRequiredString(payload, "path", BasicMemoryToolNames.Project);
+        var created = BasicMemoryToolResultReader.GetRequiredBoolean(payload, "created", BasicMemoryToolNames.Project);
+        var alreadyExists = BasicMemoryToolResultReader.GetRequiredBoolean(payload, "already_exists", BasicMemoryToolNames.Project);
 
         if (created == alreadyExists)
-            throw new InvalidOperationException($"Basic Memory '{BasicMemoryToolNames.CreateMemoryProject}' returned inconsistent creation flags.");
+            throw new InvalidOperationException($"Basic Memory '{BasicMemoryToolNames.Project}' returned inconsistent creation flags.");
 
         if (!Guid.TryParse(externalIdValue, out var memoryProjectId) || memoryProjectId == Guid.Empty)
-            throw new InvalidOperationException($"Basic Memory '{BasicMemoryToolNames.CreateMemoryProject}' returned invalid external_id '{externalIdValue}'.");
+            throw new InvalidOperationException($"Basic Memory '{BasicMemoryToolNames.Project}' returned invalid external_id '{externalIdValue}'.");
 
         var status = created ? BasicMemoryProjectCreationStatus.Created : BasicMemoryProjectCreationStatus.AlreadyExists;
         return new BasicMemoryProjectCreationResult(status, new BasicMemoryProjectInfo(memoryProjectId, returnedName), returnedPath);
@@ -85,15 +86,16 @@ internal sealed class BasicMemoryProjectLifecycle : IBasicMemoryProjectLifecycle
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(memoryProjectName);
 
-        var tool = await _toolCatalog.GetRequiredToolAsync(BasicMemoryToolNames.DeleteProject, cancellationToken).ConfigureAwait(false);
+        var tool = await _toolCatalog.GetRequiredToolAsync(BasicMemoryToolNames.ProjectDelete, cancellationToken).ConfigureAwait(false);
 
         var result = await tool.CallAsync(new Dictionary<string, object?>
         {
-            ["project_name"] = memoryProjectName,
-            ["delete_notes"] = deleteNotes
+            ["name"] = memoryProjectName,
+            ["delete_notes"] = deleteNotes,
+            ["output_format"] = "json"
         }, cancellationToken: cancellationToken).ConfigureAwait(false);
 
-        BasicMemoryToolResultReader.ThrowIfError(result, BasicMemoryToolNames.DeleteProject);
+        BasicMemoryToolResultReader.ThrowIfError(result, BasicMemoryToolNames.ProjectDelete);
     }
 
     #endregion

@@ -142,6 +142,18 @@ public sealed class BasicMemoryProjectLifecycleTests
     }
 
     /// <summary>
+    /// Verifies that project deletion fails closed when the optional upstream <c>bm_project_delete</c> operation has not been enabled.
+    /// </summary>
+    [TestMethod]
+    public async Task DeleteAsyncRejectsDisabledUpstreamDeletion()
+    {
+        await using var fixture = await CreateFixtureWithoutCreateToolAsync();
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => fixture.Lifecycle.DeleteAsync("project-a", deleteNotes: true));
+        StringAssert.Contains(exception.Message, BasicMemoryToolNames.ProjectDelete);
+        Assert.AreEqual(0, fixture.State.DeleteCallCount);
+    }
+
+    /// <summary>
     /// Verifies that project deletion rejects a missing project name before invoking the Basic Memory lifecycle tool.
     /// </summary>
     [TestMethod]
@@ -363,20 +375,26 @@ public sealed class BasicMemoryProjectLifecycleTests
         /// <summary>
         /// Provides the structured Basic Memory project-create response used by lifecycle tests.
         /// </summary>
-        [McpServerTool(Name = "create_memory_project", ReadOnly = false, UseStructuredContent = true)]
-        public ProjectCreateEnvelope CreateMemoryProject(string project_name, string project_path, bool set_default = false, string output_format = "text")
+        [McpServerTool(Name = "bm_project", ReadOnly = false, UseStructuredContent = true)]
+        public ProjectCreateEnvelope CreateMemoryProject(string command, string? name = null, string? path = null, bool set_default = false, string output_format = "text")
         {
-            _state.Record(project_name, project_path, set_default, output_format);
+            if (!string.Equals(command, "create", StringComparison.Ordinal) || name == null || path == null)
+                throw new InvalidOperationException("Expected the Basic Memory 1.0 project creation command.");
+
+            _state.Record(name, path, set_default, output_format);
             return new ProjectCreateEnvelope(_state.Response);
         }
 
         /// <summary>
         /// Provides the Basic Memory project-delete response used by lifecycle tests.
         /// </summary>
-        [McpServerTool(Name = "delete_project", ReadOnly = false)]
-        public string DeleteProject(string project_name, bool delete_notes = false)
+        [McpServerTool(Name = "bm_project_delete", ReadOnly = false)]
+        public string DeleteProject(string name, bool delete_notes = false, string output_format = "text")
         {
-            _state.RecordDelete(project_name, delete_notes);
+            if (!string.Equals(output_format, "json", StringComparison.Ordinal))
+                throw new InvalidOperationException("Expected a structured deletion request.");
+
+            _state.RecordDelete(name, delete_notes);
             return "Project deleted.";
         }
 

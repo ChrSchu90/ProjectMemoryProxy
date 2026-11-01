@@ -2,13 +2,14 @@ namespace ProjectMemoryProxy.BasicMemory.Health;
 
 using System;
 using System.Collections.Generic;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using ProjectMemoryProxy.BasicMemory.Client;
 using ProjectMemoryProxy.BasicMemory.Discovery;
 
 /// <summary>
-/// Verifies Basic Memory availability through its read-only diagnostics MCP tool.
+/// Verifies Basic Memory availability through the read-only project inventory operation.
 /// </summary>
 internal sealed class BasicMemoryHealthProbe : IBasicMemoryHealthProbe
 {
@@ -43,9 +44,16 @@ internal sealed class BasicMemoryHealthProbe : IBasicMemoryHealthProbe
     /// <inheritdoc />
     public async Task CheckAsync(CancellationToken cancellationToken = default)
     {
-        var tool = await _toolCatalog.GetRequiredToolAsync(BasicMemoryToolNames.Diagnostics, cancellationToken).ConfigureAwait(false);
-        var result = await tool.CallAsync(new Dictionary<string, object?>(), cancellationToken: cancellationToken).ConfigureAwait(false);
-        BasicMemoryToolResultReader.ThrowIfError(result, BasicMemoryToolNames.Diagnostics);
+        var tool = await _toolCatalog.GetRequiredToolAsync(BasicMemoryToolNames.Project, cancellationToken).ConfigureAwait(false);
+        var result = await tool.CallAsync(new Dictionary<string, object?>
+        {
+            ["command"] = "list",
+            ["output_format"] = "json"
+        }, cancellationToken: cancellationToken).ConfigureAwait(false);
+
+        var payload = BasicMemoryToolResultReader.GetObjectPayload(result, BasicMemoryToolNames.Project);
+        if (!payload.TryGetProperty("projects", out var projects) || projects.ValueKind != JsonValueKind.Array)
+            throw new InvalidOperationException("Basic Memory project inventory response is missing its projects array.");
     }
 
     #endregion

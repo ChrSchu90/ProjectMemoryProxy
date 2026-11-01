@@ -55,7 +55,9 @@ public sealed class PublicToolInputSchemaRewriterTests
                 },
                 "search_all_projects": {
                   "type": "boolean"
-                }
+                },
+                "all_projects": { "type": "boolean" },
+                "projects": { "type": ["array", "null"] }
               },
               "required": [
                 "query"
@@ -75,6 +77,8 @@ public sealed class PublicToolInputSchemaRewriterTests
         Assert.IsFalse(properties.TryGetProperty("project_id", out _));
         Assert.IsFalse(properties.TryGetProperty("workspace", out _));
         Assert.IsFalse(properties.TryGetProperty("search_all_projects", out _));
+        Assert.IsFalse(properties.TryGetProperty("all_projects", out _));
+        Assert.IsFalse(properties.TryGetProperty("projects", out _));
 
         var required = publicSchema.GetProperty("required").EnumerateArray().Select(value => value.GetString()).ToArray();
         CollectionAssert.AreEqual(new[] { "query", "context_id" }, required);

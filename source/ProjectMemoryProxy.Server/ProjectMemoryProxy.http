@@ -26,6 +26,36 @@ Mcp-Method: tools/list
   }
 }
 
+
+### Get Basic Memory manual index
+
+POST {{basicMemoryEndpoint}}
+Accept: application/json, text/event-stream
+Content-Type: application/json
+MCP-Protocol-Version: 2026-07-28
+Mcp-Method: tools/call
+Mcp-Name: bm_man
+
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "tools/call",
+  "params": {
+    "_meta": {
+      "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+      "io.modelcontextprotocol/clientCapabilities": {},
+      "io.modelcontextprotocol/clientInfo": {
+        "name": "ProjectMemoryProxy.http",
+        "version": "1.0"
+      }
+    },
+    "name": "bm_man",
+    "arguments": {
+      "output_format": "json"
+    }
+  }
+}
+
 ### List available ProjectMemoryProxy tools
 
 POST {{HostAddress}}/mcp
@@ -50,21 +80,21 @@ Mcp-Method: tools/list
   }
 }
 
-### Basic Memory Diagnostic through ProjectMemoryProxy
+### Basic Memory Manual through ProjectMemoryProxy
 
 POST {{HostAddress}}/mcp
 Content-Type: application/json
 Accept: application/json, text/event-stream
 MCP-Protocol-Version: 2026-07-28
 Mcp-Method: tools/call
-Mcp-Name: basic_memory_diagnostics
+Mcp-Name: bm_man
 
 {
   "jsonrpc": "2.0",
   "id": 1,
   "method": "tools/call",
   "params": {
-    "name": "basic_memory_diagnostics",
+    "name": "bm_man",
     "arguments": {},
     "_meta": {
       "io.modelcontextprotocol/protocolVersion": "2026-07-28",

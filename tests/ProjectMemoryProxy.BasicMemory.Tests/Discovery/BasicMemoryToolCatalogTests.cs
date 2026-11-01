@@ -148,7 +148,7 @@ public sealed class BasicMemoryToolCatalogTests
             try
             {
                 var tools = await client.ListToolsAsync(cancellationToken);
-                var tool = tools.Single(tool => tool.ProtocolTool.Name == "search_notes");
+                var tool = tools.Single(tool => tool.ProtocolTool.Name == "bm_search");
                 return new TestToolFixture(server, client, tool);
             }
             catch
@@ -240,7 +240,7 @@ public sealed class BasicMemoryToolCatalogTests
         /// <summary>
         /// Provides a representative Basic Memory search tool for tool catalog tests.
         /// </summary>
-        [McpServerTool(Name = "search_notes", ReadOnly = true)]
+        [McpServerTool(Name = "bm_search", ReadOnly = true)]
         [System.ComponentModel.Description("Searches notes in Basic Memory.")]
         public static string SearchNotes(
             [System.ComponentModel.Description("The search query.")] string query)
