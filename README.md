@@ -58,7 +58,7 @@ Trusted clients can manage projects and their bindings through the same MCP conn
 
 Project discovery and creation use Basic Memory 1.0's `bm_project` tool internally. Deletion uses the separate `bm_project_delete` tool, which is disabled upstream unless the Basic Memory host explicitly enables `BASIC_MEMORY_ENABLE_PROJECT_DELETE=true`. When disabled, PMP's `delete_project` fails without deleting the local project routing or its context bindings. Never enable this upstream destructive operation for untrusted MCP clients.
 
-Neither `bm_project` nor `bm_project_delete` is exposed as a generic mirrored tool. `bm_man` is globally allowlisted for read-only built-in documentation and does not require a `context_id`. The readiness check uses the read-only `bm_project(command="list")` operation; the legacy `basic_memory_diagnostics` tool no longer exists.
+Neither `bm_project` nor `bm_project_delete` is exposed as a generic mirrored tool. The unscoped upstream documentation tool `bm_man` is intentionally hidden as well. Agents should use the PMP-specific project-memory skill references in `examples/agent settings/` for supported search, note-editing and schema workflows. The readiness check uses the read-only `bm_project(command="list")` operation; the legacy `basic_memory_diagnostics` tool no longer exists.
 
 ## Scope and trust model
 
