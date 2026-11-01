@@ -1,7 +1,7 @@
 ---
 name: project-memory
 description: Use when Hermes reads or updates persistent project memory.
-version: 0.4.0
+version: 0.5.0
 platforms: [linux]
 metadata:
   hermes:
@@ -35,6 +35,17 @@ Preserve the exact `context_id`; do not silently trim, lowercase, repair, infer,
 4. If the context is unknown, invalid, ambiguous, unbound, inactive, or unavailable, **stop project-memory reads and writes**. Never try another context, a default project, a broad cross-project query, or an unscoped compatibility tool as a workaround. Continue the underlying task without memory when feasible and disclose the limitation.
 
 Current project-memory MCP tool patterns and administration arguments are in [MCP interface reference](references/mcp-interface.md). Use only operations actually exposed by the connected service.
+
+## Public tool usage references
+
+Load only the guidance relevant to the task. These references summarize **PMP-scoped Basic Memory 1.0 behavior**, not the unrestricted upstream API; actual MCP tool discovery and schemas remain authoritative.
+
+- For finding notes, folder inventory, ranked search, and graph context: read [Search and navigation](references/search.md).
+- Before reading or modifying notes, especially with checksums, section edits or deletion: read [Note operations](references/notes.md).
+- For Picoschema validation, inference or drift analysis: read [Note schemas](references/schemas.md).
+- For MCP refusal codes, concurrent edits, missing bindings or uncertain outcomes: read [Errors and recovery](references/errors.md).
+
+Only use tools exposed by the configured PMP connection. Do not request native Basic Memory manuals or use the upstream endpoint to bypass its hidden tools. Project creation, deletion and context binding belong exclusively to the PMP control plane.
 
 ## Retrieve useful context
 
